@@ -1,9 +1,8 @@
 from typing import Optional, Iterable
-import random
 import math
 from collections import defaultdict, deque
-import torch
-from ..learning.logistic_swap_model import LogisticSwapModel
+import numpy as np
+from ..learning.gaussian_process_swap_model import GaussianProcessSwapModel
 from .classic_single_mediated_text import ClassicSingleMediatedTextMechanism
 from ..negotiator import BasicDARPNegotiator
 from ..outcome.darp_outcome import DARPNegotiationDomain, BasicDARPOutcome
@@ -38,8 +37,8 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self.current_pair_attempts = []
         self._clear_case_statistics()
 
-        print("[INIT] Mediator initialized with logistic swap model (case-specific)")
-        print(f"[INIT] LogisticSwapModel input_dim = {self.swap_feature_dim}")
+        print("[INIT] Mediator initialized with GaussianProcess swap model (case-specific)")
+        print(f"[INIT] GaussianProcessSwapModel input_dim = {self.swap_feature_dim}")
 
     # --------------------------------------------------
     # Learning Helpers
@@ -55,7 +54,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self._clear_case_statistics()
         self.agent_deterministic_accepts.clear()
         self.current_pair_attempts = []
-        print("[RESET] Logistic swap model and buffers have been reset.")
+        print("[RESET] GaussianProcess swap model and buffers have been reset.")
 
     @staticmethod
     def _agent_sort_key(agent_id: str):
@@ -82,12 +81,12 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             float(client_volume),
         ]
 
-    def _get_agent_model(self, agent_id: str) -> LogisticSwapModel:
+    def _get_agent_model(self, agent_id: str) -> GaussianProcessSwapModel:
         if agent_id not in self.agent_swap_models:
-            self.agent_swap_models[agent_id] = LogisticSwapModel(input_dim=self.swap_feature_dim)
+            self.agent_swap_models[agent_id] = GaussianProcessSwapModel(input_dim=self.swap_feature_dim)
         return self.agent_swap_models[agent_id]
 
-    def _build_agent_swap_features(self, give_client_id: int, receive_client_id: int) -> torch.Tensor:
+    def _build_agent_swap_features(self, give_client_id: int, receive_client_id: int) -> np.ndarray:
         """Feature vector for an agent giving give_client and receiving receive_client."""
         give_client = self.domain.get_client(give_client_id)
         receive_client = self.domain.get_client(receive_client_id)
@@ -95,7 +94,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             *self._get_client_feature_vector(give_client),
             *self._get_client_feature_vector(receive_client),
         ]
-        return torch.tensor(features, dtype=torch.float32).unsqueeze(0)
+        return np.asarray(features, dtype=np.float32)
 
     def _total_buffer_size(self) -> int:
         return sum(len(buffer) for buffer in self.swap_training_buffers.values())
@@ -217,7 +216,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             f"c{pair['client_a']}@{pair['agent_a']}<->c{pair['client_b']}@{pair['agent_b']} (p={pair['prob']:.2f})"
             for pair in chosen_pairs
         )
-        print(f"[GEN] Logistic model selected swaps: {top_logs}")
+        print(f"[GEN] GP model selected swaps: {top_logs}")
         return base_outcome
 
     def _record_pair_training_examples(
@@ -245,54 +244,34 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             label_value = 1.0 if is_accepted else 0.0
             features_a = self._build_agent_swap_features(client_a, client_b)
             features_b = self._build_agent_swap_features(client_b, client_a)
-            label_tensor = torch.tensor([[label_value]], dtype=torch.float32)
-            self.swap_training_buffers[agent_a].append((features_a, label_tensor))
-            self.swap_training_buffers[agent_b].append((features_b, label_tensor.clone()))
-            recent_samples[agent_a].append((features_a, label_tensor))
-            recent_samples[agent_b].append((features_b, label_tensor.clone()))
+            self.swap_training_buffers[agent_a].append((features_a, label_value))
+            self.swap_training_buffers[agent_b].append((features_b, label_value))
+            recent_samples[agent_a].append((features_a, label_value))
+            recent_samples[agent_b].append((features_b, label_value))
             if label_value >= 0.5:
                 self._freeze_pair(agent_a, client_a, agent_b, client_b)
                 self._mark_deterministic_swap(agent_a, client_a, client_b)
                 self._mark_deterministic_swap(agent_b, client_b, client_a)
         return dict(recent_samples)
 
-    def _train_swap_model(self, batch_size: int = 16, recent_samples: Optional[dict] = None) -> Optional[float]:
+    def _train_swap_model(self, recent_samples: Optional[dict] = None) -> Optional[float]:
         """
-        Train the logistic regression models using the latest swaps (online update)
-        and optionally reinforce with a random batch from each agent's replay buffer.
+        Fit Gaussian Process classifiers for agents that received new samples using
+        their full replay buffer.
         """
         losses = []
 
-        if recent_samples:
-            for agent_id, samples in recent_samples.items():
-                if not samples:
-                    continue
-                x_recent = torch.cat([sample[0] for sample in samples], dim=0)
-                y_recent = torch.cat([sample[1] for sample in samples], dim=0)
-                model = self._get_agent_model(agent_id)
-                losses.append(model.train_batch(x_recent, y_recent))
-
-        for agent_id, buffer in self.swap_training_buffers.items():
-            if len(buffer) >= batch_size:
-                buffer_list = list(buffer)
-                recent_count = max(1, batch_size // 2)
-                recent_samples = buffer_list[-recent_count:]
-
-                remaining = batch_size - len(recent_samples)
-                historical_pool = buffer_list[:-recent_count]
-                if remaining > 0 and historical_pool:
-                    if len(historical_pool) <= remaining:
-                        historical_samples = historical_pool
-                    else:
-                        historical_samples = random.sample(historical_pool, remaining)
-                else:
-                    historical_samples = []
-
-                batch = recent_samples + historical_samples
-                x_batch = torch.cat([item[0] for item in batch], dim=0)
-                y_batch = torch.cat([item[1] for item in batch], dim=0)
-                model = self._get_agent_model(agent_id)
-                losses.append(model.train_batch(x_batch, y_batch))
+        target_agents = set(recent_samples.keys()) if recent_samples else set(self.swap_training_buffers.keys())
+        for agent_id in target_agents:
+            buffer = self.swap_training_buffers.get(agent_id)
+            if not buffer:
+                continue
+            x_batch = np.stack([item[0] for item in buffer], axis=0)
+            y_batch = np.asarray([item[1] for item in buffer], dtype=np.int32)
+            model = self._get_agent_model(agent_id)
+            loss = model.fit(x_batch, y_batch)
+            if loss is not None:
+                losses.append(loss)
 
         if not losses:
             return None
@@ -567,7 +546,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
 
         print(f"[LOG] Round {round_num}: Accepts={num_accepts}, Swaps={num_swaps}")
         if training_loss is not None:
-            print(f"[LR-TRAIN] Logistic regression loss={training_loss:.4f}")
+            print(f"[GP-TRAIN] Gaussian Process log-loss={training_loss:.4f}")
 
         replay_buffer_size = self._total_buffer_size()
 
