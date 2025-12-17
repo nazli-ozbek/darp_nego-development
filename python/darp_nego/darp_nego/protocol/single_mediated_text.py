@@ -25,7 +25,15 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
 
         # === Learning State ===
         self.client_feature_dim = 5
-        self.swap_feature_dim = self.client_feature_dim * 2
+        self.agent_behavior_feature_dim = 4
+        self.agent_behavior_window = kwargs.get("agent_behavior_window", 20)
+        segment_bucket_param = kwargs.get("segment_bucket_size")
+        self._segment_bucket_dynamic = segment_bucket_param is None
+        self.segment_bucket_min = kwargs.get("segment_bucket_min", 1.0)
+        self.segment_bucket_max = kwargs.get("segment_bucket_max", 10000.0)
+        self.segment_bucket_target_divisions = kwargs.get("segment_bucket_target_divisions", 4)
+        self.segment_bucket_size = segment_bucket_param if segment_bucket_param is not None else 0.0
+        self.swap_feature_dim = self.client_feature_dim * 2 + self.agent_behavior_feature_dim
         self.training_buffer_maxlen = kwargs.get("swap_buffer_maxlen", 500)
         self.agent_swap_models = {}
         self.swap_training_buffers = defaultdict(lambda: deque(maxlen=self.training_buffer_maxlen))
@@ -36,6 +44,9 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self.agent_deterministic_accepts = set()
         self.frozen_pair_keys = set()
         self.current_pair_attempts = []
+        self.agent_recent_outcomes = defaultdict(lambda: deque(maxlen=self.agent_behavior_window))
+        self.agent_segment_stats = defaultdict(lambda: defaultdict(lambda: {"attempts": 0, "success": 0}))
+        self.agent_total_stats = defaultdict(lambda: {"attempts": 0, "success": 0})
         self._clear_case_statistics()
 
         print("[INIT] Mediator initialized with logistic swap model (case-specific)")
@@ -55,6 +66,11 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self._clear_case_statistics()
         self.agent_deterministic_accepts.clear()
         self.current_pair_attempts = []
+        self.agent_recent_outcomes.clear()
+        self.agent_segment_stats.clear()
+        self.agent_total_stats.clear()
+        if self._segment_bucket_dynamic:
+            self.segment_bucket_size = 0.0
         print("[RESET] Logistic swap model and buffers have been reset.")
 
     @staticmethod
@@ -64,6 +80,34 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         agents = sorted([agent_a, agent_b], key=self._agent_sort_key)
         clients = tuple(sorted((client_a, client_b)))
         return (agents[0], agents[1], clients[0], clients[1])
+
+    def _configure_segment_bucket_size(self):
+        """Derive a reasonable grid size from the revealed client coordinates."""
+        if not self._segment_bucket_dynamic:
+            return
+        if not self.domain or not getattr(self.domain, "known_clients", None):
+            return
+        coords = []
+        for client in self.domain.known_clients.values():
+            if getattr(client, "start_coordinates", None):
+                coords.append(client.start_coordinates)
+        if not coords:
+            self.segment_bucket_size = max(self.segment_bucket_min, 1.0)
+            print(f"[SEGMENT] No coordinates found; fallback bucket={self.segment_bucket_size:.2f}")
+            return
+        xs = [pt[0] for pt in coords]
+        ys = [pt[1] for pt in coords]
+        span_x = max(xs) - min(xs)
+        span_y = max(ys) - min(ys)
+        dominant_span = max(span_x, span_y)
+        if dominant_span <= 0:
+            bucket = self.segment_bucket_min
+        else:
+            divisions = max(1.0, float(self.segment_bucket_target_divisions))
+            bucket = dominant_span / divisions
+        bucket = max(self.segment_bucket_min, min(bucket, self.segment_bucket_max))
+        self.segment_bucket_size = bucket
+        print(f"[SEGMENT] Auto bucket size={bucket:.2f} (span_x={span_x:.2f}, span_y={span_y:.2f})")
 
     def _get_client_feature_vector(self, client) -> list:
         pickup_window = (client.late_pickup - client.early_pickup) / 3600.0
@@ -87,13 +131,66 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             self.agent_swap_models[agent_id] = LogisticSwapModel(input_dim=self.swap_feature_dim)
         return self.agent_swap_models[agent_id]
 
-    def _build_agent_swap_features(self, give_client_id: int, receive_client_id: int) -> torch.Tensor:
+    def _segment_key(self, client) -> Optional[tuple]:
+        if client is None or self.segment_bucket_size <= 0:
+            return None
+        bucket = self.segment_bucket_size
+        sx, sy = client.start_coordinates
+        return (int(sx // bucket), int(sy // bucket))
+
+    def _get_agent_behavior_features(self, agent_id: str, receive_client_id: int) -> list:
+        recent_history = self.agent_recent_outcomes.get(agent_id, [])
+        if recent_history:
+            recent_rate = sum(recent_history) / len(recent_history)
+        else:
+            recent_rate = 0.5
+
+        totals = self.agent_total_stats.get(agent_id, {"attempts": 0, "success": 0})
+        if totals["attempts"] > 0:
+            overall_rate = totals["success"] / totals["attempts"]
+        else:
+            overall_rate = 0.5
+
+        receive_client = self.domain.get_client(receive_client_id)
+        segment_key = self._segment_key(receive_client)
+        if segment_key is not None:
+            segment_stats = self.agent_segment_stats[agent_id].get(segment_key, {"attempts": 0, "success": 0})
+            attempts = segment_stats["attempts"]
+            segment_rate = (segment_stats["success"] / attempts) if attempts > 0 else overall_rate
+        else:
+            attempts = 0
+            segment_rate = overall_rate
+        segment_confidence = min(attempts / max(1.0, float(self.agent_behavior_window)), 1.0)
+        return [
+            float(recent_rate),
+            float(overall_rate),
+            float(segment_rate),
+            float(segment_confidence),
+        ]
+
+    def _update_agent_behavior_stats(self, agent_id: str, receive_client_id: int, accepted: bool):
+        outcome_flag = 1.0 if accepted else 0.0
+        self.agent_recent_outcomes[agent_id].append(outcome_flag)
+        totals = self.agent_total_stats[agent_id]
+        totals["attempts"] += 1
+        totals["success"] += 1 if accepted else 0
+
+        receive_client = self.domain.get_client(receive_client_id)
+        segment_key = self._segment_key(receive_client)
+        if segment_key is not None:
+            segment_stats = self.agent_segment_stats[agent_id][segment_key]
+            segment_stats["attempts"] += 1
+            segment_stats["success"] += 1 if accepted else 0
+
+    def _build_agent_swap_features(self, agent_id: str, give_client_id: int, receive_client_id: int) -> torch.Tensor:
         """Feature vector for an agent giving give_client and receiving receive_client."""
         give_client = self.domain.get_client(give_client_id)
         receive_client = self.domain.get_client(receive_client_id)
+        behavior_features = self._get_agent_behavior_features(agent_id, receive_client_id)
         features = [
             *self._get_client_feature_vector(give_client),
             *self._get_client_feature_vector(receive_client),
+            *behavior_features,
         ]
         return torch.tensor(features, dtype=torch.float32).unsqueeze(0)
 
@@ -109,7 +206,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
     def _agent_swap_probability(self, agent_id: str, give_client_id: int, receive_client_id: int) -> float:
         if self._is_deterministic_swap(agent_id, give_client_id, receive_client_id):
             return 1.0
-        features = self._build_agent_swap_features(give_client_id, receive_client_id)
+        features = self._build_agent_swap_features(agent_id, give_client_id, receive_client_id)
         model = self._get_agent_model(agent_id)
         return float(model.predict_proba(features))
 
@@ -243,13 +340,15 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
                 and acceptable_part.get(client_b) == expected_b_owner
             )
             label_value = 1.0 if is_accepted else 0.0
-            features_a = self._build_agent_swap_features(client_a, client_b)
-            features_b = self._build_agent_swap_features(client_b, client_a)
+            features_a = self._build_agent_swap_features(agent_a, client_a, client_b)
+            features_b = self._build_agent_swap_features(agent_b, client_b, client_a)
             label_tensor = torch.tensor([[label_value]], dtype=torch.float32)
             self.swap_training_buffers[agent_a].append((features_a, label_tensor))
             self.swap_training_buffers[agent_b].append((features_b, label_tensor.clone()))
             recent_samples[agent_a].append((features_a, label_tensor))
             recent_samples[agent_b].append((features_b, label_tensor.clone()))
+            self._update_agent_behavior_stats(agent_a, client_b, is_accepted)
+            self._update_agent_behavior_stats(agent_b, client_a, is_accepted)
             if label_value >= 0.5:
                 self._freeze_pair(agent_a, client_a, agent_b, client_b)
                 self._mark_deterministic_swap(agent_a, client_a, client_b)
@@ -366,6 +465,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self._reset_learning_state()
 
         super().prenegotiation()
+        self._configure_segment_bucket_size()
 
         self.improvements = {agent.agent_id: 0 for agent in self.participants.values()}
         self.preferences = {
