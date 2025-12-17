@@ -1,0 +1,32 @@
+[
+    {
+        "client_id": 0,
+        "start_location": 7,
+        "end_location": 5,
+        "early_pickup": 150,
+        "late_pickup": 300,
+        "early_drop_off": 200,
+        "late_drop_off": 800,
+        "volume": 2
+    },
+    {
+        "client_id": 1,
+        "start_location": 10,
+        "end_location": 4,
+        "early_pickup": 10,
+        "late_pickup": 400,
+        "early_drop_off": 300,
+        "late_drop_off": 760,
+        "volume": 1
+    },
+    {
+        "client_id": 2,
+        "start_location": 9,
+        "end_location": 3,
+        "early_pickup": 2,
+        "late_pickup": 340,
+        "early_drop_off": 230,
+        "late_drop_off": 800,
+        "volume": 4
+    }
+]

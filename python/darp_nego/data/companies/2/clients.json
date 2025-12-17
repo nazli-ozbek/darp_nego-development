@@ -1,0 +1,22 @@
+[
+    {
+        "client_id": 3,
+        "start_location": 8,
+        "end_location": 4,
+        "early_pickup": 20,
+        "late_pickup": 200,
+        "early_drop_off": 30,
+        "late_drop_off": 600,
+        "volume": 2
+    },
+    {
+        "client_id": 4,
+        "start_location": 6,
+        "end_location": 5,
+        "early_pickup": 300,
+        "late_pickup": 890,
+        "early_drop_off": 670,
+        "late_drop_off": 900,
+        "volume": 1
+    }
+]

@@ -1,0 +1,89 @@
+x DONE a more generic algorithm, reads data from file
+
+x DONE how is the objective in the library calculated, details of the heuristic algorithm
+    objective function minimize the total travel time of all vehicles 
+        and plus the penalties for arriving outside of the time windows and vehicle capacity slack
+    heuristic search
+        FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION: 
+            This strategy constructs an initial solution by repeatedly inserting the "cheapest" (shortest travel time) 
+            unrouted node into the existing routes. The PARALLEL aspect means that multiple threads can be used to 
+            speed up the process.
+        LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH: 
+            This is a metaheuristic that improves the initial solution through local search. It uses a 
+            penalty mechanism to guide the search away from previously explored local optima. 
+            Guided Local Search is effective at finding good solutions for complex routing problems.
+
+x DONE data generator, scneario generation generic way. 
+    a more dynamic scenario like a simulator. daily scenarios, hourly, number of ambulances
+    systemical way to generate some scnearios for time matrix
+    and test
+    one scenario manually test
+
+x DONE make a interface to create scenarios
+
+x DONE time matrix calculation
+    road network durations must be found in the main (according to clients and vehicles locations)
+    in basic_darp.py, road network matrix must be handled somehow that we should not lose the location info
+        so we can creating time_matrix according to ortools 
+    # https://mapsplatform.google.com/pricing/#pricing-calculator
+    - discuss
+
+x DONE number of customer satisfied :
+    average satisfied score with metrics like 1 if sent early, 2 on time, 3 late
+    related to gasoline, overall traffic distance, time
+    how many tasks were completed and how many were not
+    pricing policy, profit for the company
+    - a fake calculation for now. can be considered in more detail
+
+
+- customer satisfy ratio how to represent (fix fee/dynamic fee)
+    oil cost, lateness cost, driver cost (cost function, profit function)
+    can we optimize these functions in the negotiation part (automatic decision mechanic, when to accept)
+        the utility calculation based on the current situation
+        determining to reservation value
+
+- negotiation can be between agents or via mediator
+    mediator: how to generate offer, what information should be shared (time is important, privacy is important)
+
+
+! check if the system work correctly for many cases
+    what does it do in cases where it is infeasible
+
+
+? clients must return their home with same vehicle.
+    we do not have the information -and we can not guess- when the client's jobs done in the hospital
+        will this information be given before scenario start -it is not realistic-
+        will it be entered after the deliveries completed? 
+            then we need to keep record of the client-vehicle pairs and run another new simulation, no need to create enother constraint or model
+    or we dont consider time windows and just deliver back them to home when vehicle route is completed (after it deliveried clients to hospitals)
+
+
+PRE-NEGOTIATION
+- every agent decide whtch clients to switch (heuristically) (COULD BE EMPTY )
+	- same time windows clients. timeda conflict olanlar var ise 1 taneyse direkt gönder değilse profit, time cost calcullation to decide
+	- else profit time estimaation
+	
+- different strategies for swap, feasiblity check, profitbility calculation
+
+
+NEGOTIATION
+- initially mediator maybe do swaps
+- client agents evaluating offer (another darp problem) (agentler mediatorün teklifini karşılaştırmak için tekrar sezgisel hesaplıyolar)
+- profit karşılaştır. efektifse veya aynıysa kabul. değilse hayır..
+- mediator evet diyen companyleri kaldırıp geri kalanlara tekrar çözüm. yani 2li swaplerde kabul edenler onaylayor. kabul edilen clientlar öyle kalabilir, 
+- predefined nummber turn
+
+
+- 10 scenario manually checking output, debug, estimate, smart strategies
+-generated scnearios , costs, profit calculation, percent of success for each agent before negotiation 
+    total travel time, metrics
+- we need infeasible heuristic solutions before negotiation
+- logging mechanism, keep scenario for each agent cost profit perventage success...
+- for each agent how many (agreement rate!) 
+
+
+(we consider privacy maybe client count for now. information sharing rate. details in dave's and onur's papers)
+(bileteral,than multiliteral)
+
+similarities between clients and mediator smart swaps, guess clietns choices, similarity ratio
+try to guess client choices

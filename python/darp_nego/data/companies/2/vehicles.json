@@ -1,0 +1,8 @@
+[
+    {
+        "vehicle_id": 3,
+        "start_location": 2,
+        "end_location": 2,
+        "max_volume": 8
+    }
+]

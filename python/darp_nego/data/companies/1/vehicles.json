@@ -1,0 +1,20 @@
+[
+    {
+        "vehicle_id": 0,
+        "start_location": 0,
+        "end_location": 0,
+        "max_volume": 10
+    },
+    {
+        "vehicle_id": 1,
+        "start_location": 0,
+        "end_location": 1,
+        "max_volume": 5
+    },
+    {
+        "vehicle_id": 2,
+        "start_location": 1,
+        "end_location": 1,
+        "max_volume": 15
+    }
+]

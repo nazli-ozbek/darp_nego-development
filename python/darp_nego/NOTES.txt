@@ -1,0 +1,98 @@
+Google OR-tools:
+    - If time matrix' max value is bigger than time dimension's MAX_ROUTE_TIME (maximum time per vehicle), problem gets infeasible.
+
+    - We can add vehicle cost to prevent using additional vehicles. SetFixedCostOfVehicle()
+
+    -  VRP with capacity constraints in which the total demand at all locations exceeds the total capacity of the vehicles, no solution is possible
+        https://developers.google.com/optimization/routing/penalties
+
+    - DONE. Same hospital node must be defined more than once to be visitable for many clients. Allow multiple vehicles cross one node: (fake same nodes)
+            https://github.com/google/or-tools/issues/689
+            https://github.com/google/or-tools/issues/630
+            https://stackoverflow.com/questions/66661808/or-tools-cvrp-with-multiple-trips
+            https://github.com/google/or-tools/blob/master/ortools/constraint_solver/samples/cvrp_reload.py
+            https://stackoverflow.com/questions/71250366/use-or-tools-to-combine-pickups-and-deliveries-multi-trips-and-capacity-constr
+            
+
+    -  DONE. We are assigning time windows for each location. (.SetRange(client.early_pickup, late_pickup))
+        But how setting up Client's drop-off time window?
+        Could it be solution?: https://stackoverflow.com/questions/66661808/or-tools-cvrp-with-multiple-trips
+    - Client's pickup and dropoff times? Is it from now on x seconds, or is it at x/3600 hour oclock?
+        for now, get current_time = time.time() then add seconds and assign to time_windows.
+    - Maybe adding max travel times for routes? But is it a "must" to end every route in hospital?
+        https://stackoverflow.com/questions/68750129/google-or-tools-total-time-capacity-over-all-routes-combined/68756570#68756570
+
+    - Slack times with time windows: 
+        - https://stackoverflow.com/questions/50483447/definition-of-slack-variable-in-time-window-routing
+        - https://github.com/google/or-tools/issues/1051
+    - OR-Tools tries to minimize the overall cost and will avoid waiting (slack) if the vehicle can arrive exactly when needed. solver will only use slack when it is forced to do so (i.e., if it arrives earlier than the allowed time and must wait).
+        - https://github.com/google/or-tools/issues/924
+        - Hard time windows (SetRange) → The vehicle must arrive within a fixed window. Soft time windows (SetCumulVarSoftUpperBound) → The solver penalizes violations instead of enforcing hard limits. 
+        decide hard or soft windows? maybe higher penalties for soft constraints.
+
+    - Should i make vehicle nodes(start-end locations) optional, which is "disjunction" (optional so you should put them (one by one) in a disjunction so the solver don't have to visit them if not needed.)
+        https://stackoverflow.com/questions/57134292/vehicle-routing-problem-with-time-windows-at-different-start-and-end-depot
+        # Allow to drop nodes. :https://github.com/google/or-tools/blob/master/examples/python/prize_collecting_vrp.py
+
+    - DONE. need to duplicate the depot and use a negative capacity demand to simulate an unload. 
+        In order to implement multiple trips, new nodes are introduced at the same locations of the original depots. These additional nodes can be dropped from the schedule at 0 cost.
+        https://github.com/google/or-tools/blob/master/ortools/constraint_solver/samples/cvrp_reload.py
+    - Time should not restart from 0 after multiple depot visit: https://github.com/google/or-tools/issues/1891 
+
+    
+    - DONE: How to define depot in time matrix? Vehicle start-end is depot?
+
+    - Should we minimize the vehicle count? Add penalty for each route?
+
+    - SetGlobalSpanCostCoefficient?
+
+    - we added slackVar for vehicle: https://github.com/google/or-tools/issues/1051
+        TODO: need to test if it is working properly
+
+    -  to take the time to service the depot at the end of the tour, not the beginning. Fix the bool fix_start_cumul_to_zero to true and the CumulVar() variable of the start node of all vehicles will be set to 0. 
+        Should we set false when real scneario happened?
+
+    - Depots are always active and thus can not be part of a Disjunction. https://acrogenesis.com/or-tools/documentation/user_manual/manual/vrp/multi_depots.html
+        TODO: in real scenario maybe we can manually manage it in the program output.
+
+    - TODO: in real scenario all time window ranges should be in [0, max dimension value]. https://stackoverflow.com/questions/63275072/how-do-i-use-google-or-tools-to-add-disjunctions-set-penalties-and-prevent-cer
+
+    - TODO: Vehicles sometimes do not unload one of the client if two clients must unloaded in the same location. Other one traveling and coming back that location later.
+
+Time Windows explained: 
+    https://github.com/google/or-tools/issues/1051
+    time_dimension.CumulVar(routing.NodeToIndex(location)).SetRange(time_window[0], time_window[1])
+    A: Since we have create a "travel time" dimension, each time you travel from A to B, you add the transit value (ed transit is the callback you pass when building the time dimension) to a CumulVar.
+    e.g. transit(A, B) return 2 and transit(B, C) return 3.
+    supposing you have the route A -> B -> C (with start node being node A).
+    then you'll have:
+
+    time_dimension.Cumul(A) == 0 # if you set_cumul_var_to_zero in dimension constructor
+    time_dimension.Cumul(B) == time_dimension.Cumul(A) + time_dimension.transit(A,B) == 0 + 2 == 2
+    time_dimension.Cumul(C) == time_dimension.Cumul(B) + time_dimension.transit(B, C) == 2 + 3 == 5.
+    Supposing you have a time windows at location X [time_0, time_1] which mean we want the value of Cumul(X) to be in range [time_0, time_1]
+    -> Cumul(X).SetRange(time_0, time_1)
+
+
+
+Additional Notes:
+    - To add predefined constraint(dimension) example: https://github.com/Mizux/ortoolsplayground/blob/main/ortoolsplayground.py
+
+
+Future Scenario Questions:
+    - every BasicDARPProblem is an agent, and every agent solves their own problem. (problem2.solve_problem())
+        Is mediator agent will get solutions from all agents and "without optimization", exchange the clients?
+            In that case, why optimization part needed? Because every egent's solution will intertwined
+        Or the mediator agent also use optimization part, but then why all agents optimizing their own data? 
+
+
+____________________________________________________________________________________________
+
+PyVRP (ELIMINATED)
+    - Pick Up and Delivery problem is the most suitable for our case.
+    - Clients = pickups and hospitals = deliveries in that case. 
+    - Hospitals delivery load = hospital's all clients' total volume 
+        - is it possible to decrease hospital delivery count when every client dropped?
+        - first pickup, then delivery constraint?
+        - a client's(a load in that case) start location is can be assigned but en location?
+    - Client's end location can not be defined. Library's data structure not allowing that
