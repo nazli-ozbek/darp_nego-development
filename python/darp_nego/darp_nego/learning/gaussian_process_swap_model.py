@@ -20,12 +20,15 @@ class GaussianProcessSwapModel:
         kernel = ConstantKernel(1.0, (1e-2, 1e2)) * RBF(length_scale=length_scales)
         self.model = GaussianProcessClassifier(kernel=kernel, warm_start=True, random_state=0)
         self._is_fitted = False
+        self._single_class_probability: Optional[float] = None
 
     def predict_proba(self, features: np.ndarray) -> float:
         """
         Return P(class=1) for a single feature vector. If the model has not
         been fitted yet, return a neutral probability (0.5).
         """
+        if self._single_class_probability is not None:
+            return self._single_class_probability
         if not self._is_fitted:
             return 0.5
         feature_vector = np.asarray(features, dtype=np.float32).reshape(1, -1)
@@ -45,13 +48,20 @@ class GaussianProcessSwapModel:
         if X.shape[1] != self.input_dim:
             raise ValueError(f"Expected input_dim={self.input_dim}, got {X.shape[1]}")
 
+        unique_classes = np.unique(y)
+        if unique_classes.size < 2:
+            # Not enough diversity for GP fit; treat as deterministic probability.
+            label_value = float(unique_classes[0])
+            self._single_class_probability = label_value
+            self._is_fitted = False
+            return 0.0
+
+        self._single_class_probability = None
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=ConvergenceWarning)
             self.model.fit(X, y)
 
         self._is_fitted = True
-        if np.unique(y).size == 1:
-            return 0.0
-
         probs = np.clip(self.model.predict_proba(X)[:, 1], 1e-6, 1 - 1e-6)
         return float(log_loss(y, probs))

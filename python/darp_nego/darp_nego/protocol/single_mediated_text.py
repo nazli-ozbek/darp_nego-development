@@ -35,6 +35,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self.agent_deterministic_accepts = set()
         self.frozen_pair_keys = set()
         self.current_pair_attempts = []
+        self.low_prob_pair_keys = set()
         self._clear_case_statistics()
 
         print("[INIT] Mediator initialized with GaussianProcess swap model (case-specific)")
@@ -54,6 +55,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self._clear_case_statistics()
         self.agent_deterministic_accepts.clear()
         self.current_pair_attempts = []
+        self.low_prob_pair_keys.clear()
         print("[RESET] GaussianProcess swap model and buffers have been reset.")
 
     @staticmethod
@@ -178,9 +180,14 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         candidates.sort(key=lambda x: x[0], reverse=True)
         chosen_pairs = []
         used_clients = set()
+        low_prob_threshold = self.swap_probability_floor * 0.5
 
         for prob, agent_a, client_a, agent_b, client_b in candidates:
             if client_a in used_clients or client_b in used_clients:
+                continue
+            is_low_prob = prob <= low_prob_threshold
+            pair_key = self._pair_key(agent_a, client_a, agent_b, client_b)
+            if is_low_prob and pair_key in self.low_prob_pair_keys:
                 continue
             if prob < self.swap_probability_floor and chosen_pairs:
                 break
@@ -194,21 +201,16 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
                 "prob": prob
             })
             used_clients.update({client_a, client_b})
+            if is_low_prob:
+                self.low_prob_pair_keys.add(pair_key)
+            else:
+                self.low_prob_pair_keys.discard(pair_key)
             if self.max_model_swaps and len(chosen_pairs) >= self.max_model_swaps:
                 break
 
         if not chosen_pairs:
-            prob, agent_a, client_a, agent_b, client_b = candidates[0]
-            base_outcome[client_a] = agent_b
-            base_outcome[client_b] = agent_a
-            chosen_pairs = [{
-                "client_a": client_a,
-                "agent_a": agent_a,
-                "client_b": client_b,
-                "agent_b": agent_b,
-                "prob": prob
-            }]
-            used_clients.update({client_a, client_b})
+            print("[GEN] All GP candidates recently attempted with low probability, using heuristic fallback.")
+            return None
 
         self.current_pair_attempts = chosen_pairs
 
