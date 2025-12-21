@@ -309,7 +309,9 @@ def create_visualizations(analysis_results, output_dir="company_cases_analysis")
 
 def main():
     """Main function to analyze and visualize company cases."""
-    file_path = "data/2025_11_03_18_13/company_cases.json"
+    name = "2025_11_06_21_52"
+    #name = "handwritten"
+    file_path = f"data/{name}/company_cases.json"
     # Derive output folder similar to case_visuals: parent dir name of data file
     data_folder_name = os.path.basename(os.path.dirname(file_path))
     output_dir = os.path.join("company_cases_analysis", data_folder_name)

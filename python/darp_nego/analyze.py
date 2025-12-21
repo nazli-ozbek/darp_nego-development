@@ -653,7 +653,8 @@ def get_log_directories():
         list: List of log directory paths matching logs/<dataset>_case_*
     """
     import re
-    ts_regex = re.compile(r"^\d{4}_\d{2}_\d{2}_\d{2}_\d{2}$")
+    # ts_regex = re.compile(r"^\d{4}_\d{2}_\d{2}_\d{2}_\d{2}$")
+    ts_regex = re.compile(r"handwritten")
     base_dir = os.path.abspath(os.path.dirname(__file__))
     data_root = os.path.join(base_dir, "scenario_generation", "data")
     log_root = os.path.abspath(os.path.join(base_dir, os.pardir, os.pardir, "logs"))

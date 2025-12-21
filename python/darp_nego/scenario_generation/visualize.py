@@ -33,8 +33,10 @@ def plot_case_locations(case_name, case_data):
     return fig
 
 def main():
-    file_path = "data/2025_11_03_18_13/company_cases.json"  # <-- change this if needed
-    output_folder = "case_visuals/2025_11_03_18_13"
+    name = "2025_11_06_21_52"
+    #name = "handwritten"
+    file_path = f"data/{name}/company_cases.json"  # <-- change this if needed
+    output_folder = f"case_visuals/{name}"
     os.makedirs(output_folder, exist_ok=True)
 
     with open(file_path, "r") as f:

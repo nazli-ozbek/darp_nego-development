@@ -7,4 +7,3 @@ networkx~=3.0
 pyproj
 shapely
 ortools
-torch

@@ -29,17 +29,18 @@ def find_latest_dataset_logs():
     """Find all log directories for the latest dataset based on data folder name.
 
     The latest dataset name is taken from the newest timestamp folder under
-    python/darp_nego/scenario_generation/data (e.g., 2025_11_03_18_13), and then
+    python/darp_nego/llm_generated/data (e.g., 2025_11_03_18_13), and then
     matching logs '<dataset>_case_*' are collected from logs/.
 
     Returns:
         tuple[str, list[str]]: (dataset_name, list of session folder paths)
     """
     import re
-    ts_regex = re.compile(r"^\d{4}_\d{2}_\d{2}_\d{2}_\d{2}$")
+    # ts_regex = re.compile(r"^\d{4}_\d{2}_\d{2}_\d{2}_\d{2}$")
+    ts_regex = re.compile(r"llm_generated")
     base_dir = os.path.abspath(os.path.dirname(__file__))
-    # data_root: python/darp_nego/scenario_generation/data (relative to this file)
-    data_root = os.path.join(base_dir, "scenario_generation", "data")
+    # data_root: python/darp_nego/llm_generated/data (relative to this file)
+    data_root = os.path.join(base_dir, "llm_generated", "data")
     # log_root: <project_root>/logs (two levels up from this file)
     log_root = os.path.join(base_dir, os.pardir, os.pardir, "logs")
     log_root = os.path.abspath(log_root)
