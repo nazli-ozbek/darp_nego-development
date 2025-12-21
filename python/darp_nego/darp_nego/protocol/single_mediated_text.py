@@ -172,7 +172,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
                         prob_a = self._agent_swap_probability(agent_a, client_a, client_b)
                         prob_b = self._agent_swap_probability(agent_b, client_b, client_a)
                         prob = prob_a * prob_b
-                        candidates.append((prob, agent_a, client_a, agent_b, client_b))
+                        candidates.append((prob, prob_a, prob_b, agent_a, client_a, agent_b, client_b))
 
         if not candidates:
             return None
@@ -182,7 +182,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         used_clients = set()
         low_prob_threshold = self.swap_probability_floor * 0.5
 
-        for prob, agent_a, client_a, agent_b, client_b in candidates:
+        for prob, prob_a, prob_b, agent_a, client_a, agent_b, client_b in candidates:
             if client_a in used_clients or client_b in used_clients:
                 continue
             is_low_prob = prob <= low_prob_threshold
@@ -198,7 +198,9 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
                 "agent_a": agent_a,
                 "client_b": client_b,
                 "agent_b": agent_b,
-                "prob": prob
+                "prob": prob,
+                "prob_a": prob_a,
+                "prob_b": prob_b,
             })
             used_clients.update({client_a, client_b})
             if is_low_prob:
@@ -215,7 +217,15 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self.current_pair_attempts = chosen_pairs
 
         top_logs = ", ".join(
-            f"c{pair['client_a']}@{pair['agent_a']}<->c{pair['client_b']}@{pair['agent_b']} (p={pair['prob']:.2f})"
+            "c{a}@{aa}<->c{b}@{ab} (p={p:.4f}, pa={pa:.4f}, pb={pb:.4f})".format(
+                a=pair["client_a"],
+                aa=pair["agent_a"],
+                b=pair["client_b"],
+                ab=pair["agent_b"],
+                p=pair["prob"],
+                pa=pair["prob_a"],
+                pb=pair["prob_b"],
+            )
             for pair in chosen_pairs
         )
         print(f"[GEN] GP model selected swaps: {top_logs}")
@@ -270,6 +280,9 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
                 continue
             x_batch = np.stack([item[0] for item in buffer], axis=0)
             y_batch = np.asarray([item[1] for item in buffer], dtype=np.int32)
+            pos_count = int(np.sum(y_batch))
+            neg_count = int(len(y_batch) - pos_count)
+            print(f"[GP-DATA] agent={agent_id} pos={pos_count} neg={neg_count} total={len(y_batch)}")
             model = self._get_agent_model(agent_id)
             loss = model.fit(x_batch, y_batch)
             if loss is not None:

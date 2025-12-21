@@ -4,7 +4,7 @@ from typing import Optional
 import numpy as np
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.gaussian_process import GaussianProcessClassifier
-from sklearn.gaussian_process.kernels import ConstantKernel, RBF
+from sklearn.gaussian_process.kernels import RBF
 from sklearn.metrics import log_loss
 
 
@@ -17,7 +17,7 @@ class GaussianProcessSwapModel:
     def __init__(self, input_dim: int, base_length_scale: float = 1.0):
         self.input_dim = input_dim
         length_scales = np.full(input_dim, base_length_scale, dtype=np.float32)
-        kernel = ConstantKernel(1.0, (1e-2, 1e2)) * RBF(length_scale=length_scales)
+        kernel = RBF(length_scale=length_scales)
         self.model = GaussianProcessClassifier(kernel=kernel, warm_start=True, random_state=0)
         self._is_fitted = False
         self._single_class_probability: Optional[float] = None
