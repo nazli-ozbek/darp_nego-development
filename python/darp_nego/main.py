@@ -168,7 +168,7 @@ def main():
                 f"Created negotiator for company {company_id} with {len(case_problems[company_id].clients)} clients\n")
 
         max_round = math.comb(len(company_ids), 2)
-        max_round = 100
+        max_round = 200
 
         mechanism = SingleMediatedTextMechanism(
             agents=negotiators,

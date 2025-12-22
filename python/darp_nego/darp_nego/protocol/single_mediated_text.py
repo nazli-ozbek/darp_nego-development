@@ -1,4 +1,5 @@
 from typing import Optional, Iterable
+import os
 import math
 from collections import defaultdict, deque
 import numpy as np
@@ -28,13 +29,14 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self.training_buffer_maxlen = kwargs.get("swap_buffer_maxlen", 500)
         self.agent_swap_models = {}
         self.swap_training_buffers = defaultdict(lambda: deque(maxlen=self.training_buffer_maxlen))
-        default_min_samples = max(5, int(self.max_rounds * 0.2))
+        default_min_samples = 30
         self.min_samples_for_model = kwargs.get("min_samples_for_model", default_min_samples)
         self.max_model_swaps = kwargs.get("max_model_swaps", 3)
         self.swap_probability_floor = kwargs.get("swap_probability_floor", 0.1)
         self.agent_deterministic_accepts = set()
         self.frozen_pair_keys = set()
         self.current_pair_attempts = []
+        self.snapshot_rounds = set(kwargs.get("snapshot_rounds", (50, 100, 150, 200)))
         self._clear_case_statistics()
 
         print("[INIT] Mediator initialized with GaussianProcess swap model (case-specific)")
@@ -59,6 +61,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
     @staticmethod
     def _agent_sort_key(agent_id: str):
         return int(agent_id) if str(agent_id).isdigit() else agent_id
+
     def _pair_key(self, agent_a: str, client_a: int, agent_b: str, client_b: int):
         agents = sorted([agent_a, agent_b], key=self._agent_sort_key)
         clients = tuple(sorted((client_a, client_b)))
@@ -124,12 +127,14 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         dataset_size = self._total_buffer_size()
         if dataset_size < self.min_samples_for_model:
             if method == "farthest":
-                print(f"[GEN] Cold start (dataset={dataset_size}, min={self.min_samples_for_model}) -> farthest-distance proposal")
+                print(
+                    f"[GEN] Cold start (dataset={dataset_size}, min={self.min_samples_for_model}) -> farthest-distance proposal")
                 base_outcome = self.domain.generate_outcome_farthest_distance(
                     revealed_clients=None, round_history=round_history
                 )
             else:
-                print(f"[GEN] Cold start (dataset={dataset_size}, min={self.min_samples_for_model}) -> random swap proposal")
+                print(
+                    f"[GEN] Cold start (dataset={dataset_size}, min={self.min_samples_for_model}) -> random swap proposal")
                 base_outcome = self.domain.generate_random_outcome()
             if base_outcome:
                 self._capture_pairs_from_outcome(base_outcome)
@@ -232,11 +237,11 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         return base_outcome
 
     def _record_pair_training_examples(
-        self,
-        pair_attempts: Iterable[dict],
-        acceptable_part: BasicDARPOutcome,
-        round_num: int,
-        agent_responses: dict,
+            self,
+            pair_attempts: Iterable[dict],
+            acceptable_part: BasicDARPOutcome,
+            round_num: int,
+            agent_responses: dict,
     ):
         """Persist features and labels for each attempted client pair swap."""
         if not pair_attempts:
@@ -250,8 +255,8 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             expected_a_owner = agent_b
             expected_b_owner = agent_a
             is_accepted = (
-                acceptable_part.get(client_a) == expected_a_owner
-                and acceptable_part.get(client_b) == expected_b_owner
+                    acceptable_part.get(client_a) == expected_a_owner
+                    and acceptable_part.get(client_b) == expected_b_owner
             )
             label_value = 1.0 if is_accepted else 0.0
             features_a = self._build_agent_swap_features(client_a, client_b)
@@ -318,7 +323,6 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         if pair_attempts:
             self.current_pair_attempts = pair_attempts
 
-
     def _is_pair_frozen(self, agent_a: str, client_a: int, agent_b: str, client_b: int) -> bool:
         return self._pair_key(agent_a, client_a, agent_b, client_b) in self.frozen_pair_keys
 
@@ -352,6 +356,29 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             if agent._last_utility_problem is not None:
                 agent.darp_problem = agent._last_utility_problem
                 agent._last_utility_problem = None
+
+    def _snapshot_logs(self, round_number: int):
+        if round_number not in self.snapshot_rounds:
+            return
+        # Materialize a round-local final_state/final_routes so stats scripts can read snapshots.
+        self.logger.log_final_state(False, round_number, self.participants, self.domain)
+        for agent in self.participants.values():
+            self.routing_logger.log_darp_solution(agent.agent_id, "final", agent.darp_problem)
+        snapshot_root = f"logs_{round_number}"
+        neg_dir = os.path.join(snapshot_root, self.session_id, "negotiation")
+        routing_dir = os.path.join(snapshot_root, self.session_id, "routing")
+        os.makedirs(neg_dir, exist_ok=True)
+        os.makedirs(routing_dir, exist_ok=True)
+        prev_neg_dir = self.logger.log_dir
+        prev_routing_dir = self.routing_logger.log_dir
+        try:
+            self.logger.log_dir = neg_dir
+            self.routing_logger.log_dir = routing_dir
+            self.routing_logger.save_logs()
+            self.logger.save_logs()
+        finally:
+            self.logger.log_dir = prev_neg_dir
+            self.routing_logger.log_dir = prev_routing_dir
 
     # --------------------------------------------------
     # Prenegotiation
@@ -433,6 +460,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
                 self.logger.current_proposed_transfers = []
 
             self.logger.log_round(round_number, is_accepted, self.participants, round_summary)
+            self._snapshot_logs(round_number)
 
             # Termination condition
             if is_accepted:
@@ -455,7 +483,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
     # --------------------------------------------------
     # Acceptable Sub-Outcome Extraction
     # --------------------------------------------------
-    
+
     def get_acceptable_part(self, outcome: BasicDARPOutcome, graph: MultiDiGraph) -> BasicDARPOutcome:
 
         components = weakly_connected_components(graph)
@@ -496,8 +524,8 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
                 }
             replay_buffer_size = self._total_buffer_size()
             return False, {
-                "round": round_num, 
-                "num_accepts": 0, 
+                "round": round_num,
+                "num_accepts": 0,
                 "num_swaps": 0,
                 "agent_responses": agent_responses_for_logging,
                 "replay_buffer_size": replay_buffer_size,
@@ -524,7 +552,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             else:
                 if len(new_clients) == 1 and len(old_clients) == 1:
                     self.preferences[agent_id].update_prefers(new_clients[0], old_clients[0])
-        
+
         # Utility logging: also collect utility information for agents not involved in this outcome
         for agent_id in self.participants.keys():
             if agent_id not in involved_agents:
