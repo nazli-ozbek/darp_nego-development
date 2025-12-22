@@ -1,0 +1,1672 @@
+=== DARP Negotiation Log ===
+Session ID: 2025_11_06_21_52_case_1_114355
+Started: 2025-12-21 11:44:35
+
+=== CLIENT FEATURE VECTOR DISTANCE MATRIX ===
+  Client       8       9       6       7
+       8    0.00    4.92    5.71    3.81
+       9    4.92    0.00    3.81    4.68
+       6    5.71    3.81    0.00    6.02
+       7    3.81    4.68    6.02    0.00
+=== END FEATURE VECTOR DISTANCE MATRIX ===
+
+=== CLIENT COST ANALYSIS ===
+Client 6: 5.18 (most costly)
+Client 7: 4.84 (moderate)
+Client 8: 4.81 (moderate)
+Client 9: 4.47 (least costly)
+=== END CLIENT COST ANALYSIS ===
+
+=== CLIENT REVELATION SEQUENCE ===
+Agent 0 revealed client id: 8
+Agent 1 revealed client id: 9
+Agent 2 revealed client id: 6
+Agent 3 revealed client id: 7
+=== END CLIENT REVELATION SEQUENCE ===
+
+=== Pre-negotiation Phase ===
+Participants: 0, 1, 2, 3
+
+Agent 0 enters the negotiation:
+  - Initial utility: 208
+  - Clients revealed for negotiation: [8]
+
+Agent 1 enters the negotiation:
+  - Initial utility: 1400
+  - Clients revealed for negotiation: [9]
+
+Agent 2 enters the negotiation:
+  - Initial utility: 195
+  - Clients revealed for negotiation: [6]
+
+Agent 3 enters the negotiation:
+  - Initial utility: 127
+  - Clients revealed for negotiation: [7]
+
+ROUND 1
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 0 to Agent 1
+  - Transfer client 9 from Agent 1 to Agent 0
+  - Transfer client 6 from Agent 2 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 2
+
+Responses:
+  - Agent 2: ACCEPTS (cost: 195 -> 156, change: 39)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 1400 -> 429, change: 971)
+  - Agent 0: ACCEPTS (cost: 208 -> 175, change: 33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 2
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 1 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 1
+  - Transfer client 6 from Agent 2 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 2
+
+Responses:
+  - Agent 2: ACCEPTS (cost: 195 -> 156, change: 39)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 429 -> 1400, change: -971)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 3
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 0 to Agent 1
+  - Transfer client 9 from Agent 1 to Agent 0
+  - Transfer client 6 from Agent 2 to Agent 2
+  - Transfer client 7 from Agent 3 to Agent 3
+
+Responses:
+  - Agent 1: ACCEPTS (cost: 1400 -> 429, change: 971)
+  - Agent 0: ACCEPTS (cost: 208 -> 175, change: 33)
+  - Agent 2: REJECTS (cost: 195)
+  - Agent 3: REJECTS (cost: 127)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 4
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 1 to Agent 1
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 2 to Agent 0
+  - Transfer client 7 from Agent 3 to Agent 3
+
+Responses:
+  - Agent 2: REJECTS (cost: 195)
+  - Agent 0: ACCEPTS (cost: 175 -> 190, change: -15)
+  - Agent 1: REJECTS (cost: 429)
+  - Agent 3: REJECTS (cost: 127)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 5
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 1 to Agent 1
+  - Transfer client 9 from Agent 0 to Agent 3
+  - Transfer client 6 from Agent 2 to Agent 2
+  - Transfer client 7 from Agent 3 to Agent 0
+
+Responses:
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 0: REJECTS (cost: 175)
+  - Agent 1: REJECTS (cost: 429)
+  - Agent 2: REJECTS (cost: 195)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 6
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 1 to Agent 2
+  - Transfer client 9 from Agent 0 to Agent 0
+  - Transfer client 6 from Agent 2 to Agent 1
+  - Transfer client 7 from Agent 3 to Agent 3
+
+Responses:
+  - Agent 2: ACCEPTS (cost: 195 -> 134, change: 61)
+  - Agent 1: ACCEPTS (cost: 429 -> 193, change: 236)
+  - Agent 0: REJECTS (cost: 175)
+  - Agent 3: REJECTS (cost: 127)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 7
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 1
+  - Transfer client 7 from Agent 3 to Agent 3
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+  - Agent 1: REJECTS (cost: 193)
+  - Agent 3: REJECTS (cost: 127)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 8
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 2
+  - Transfer client 9 from Agent 0 to Agent 1
+  - Transfer client 6 from Agent 1 to Agent 0
+  - Transfer client 7 from Agent 3 to Agent 3
+
+Responses:
+  - Agent 1: ACCEPTS (cost: 193 -> 1400, change: -1207)
+  - Agent 0: ACCEPTS (cost: 175 -> 190, change: -15)
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 9
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 1
+  - Transfer client 9 from Agent 1 to Agent 2
+  - Transfer client 6 from Agent 0 to Agent 0
+  - Transfer client 7 from Agent 3 to Agent 3
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 1: ACCEPTS (cost: 1400 -> 429, change: 971)
+  - Agent 0: REJECTS (cost: 190)
+  - Agent 3: REJECTS (cost: 127)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 10
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 1 to Agent 1
+  - Transfer client 6 from Agent 0 to Agent 2
+  - Transfer client 7 from Agent 3 to Agent 3
+
+Responses:
+  - Agent 2: ACCEPTS (cost: 134 -> 195, change: -61)
+  - Agent 0: ACCEPTS (cost: 190 -> 208, change: -18)
+  - Agent 1: REJECTS (cost: 1400)
+  - Agent 3: REJECTS (cost: 127)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 11
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 0 to Agent 0
+  - Transfer client 9 from Agent 1 to Agent 2
+  - Transfer client 6 from Agent 2 to Agent 1
+  - Transfer client 7 from Agent 3 to Agent 3
+
+Responses:
+  - Agent 2: REJECTS (cost: 195)
+  - Agent 1: ACCEPTS (cost: 1400 -> 193, change: 1207)
+  - Agent 0: REJECTS (cost: 208)
+  - Agent 3: REJECTS (cost: 127)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 12
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 0 to Agent 3
+  - Transfer client 9 from Agent 1 to Agent 1
+  - Transfer client 6 from Agent 2 to Agent 2
+  - Transfer client 7 from Agent 3 to Agent 0
+
+Responses:
+  - Agent 3: ACCEPTS (cost: 127 -> 104, change: 23)
+  - Agent 0: REJECTS (cost: 208)
+  - Agent 1: REJECTS (cost: 1400)
+  - Agent 2: REJECTS (cost: 195)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 13
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 0 to Agent 0
+  - Transfer client 9 from Agent 1 to Agent 3
+  - Transfer client 6 from Agent 2 to Agent 2
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 1400 -> 201, change: 1199)
+  - Agent 0: REJECTS (cost: 208)
+  - Agent 2: REJECTS (cost: 195)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 14
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 0 to Agent 0
+  - Transfer client 9 from Agent 1 to Agent 1
+  - Transfer client 6 from Agent 2 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 2
+
+Responses:
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 2: ACCEPTS (cost: 195 -> 156, change: 39)
+  - Agent 0: REJECTS (cost: 208)
+  - Agent 1: REJECTS (cost: 1400)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 15
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 0 to Agent 1
+  - Transfer client 9 from Agent 1 to Agent 0
+  - Transfer client 6 from Agent 2 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 2
+
+Responses:
+  - Agent 2: ACCEPTS (cost: 195 -> 156, change: 39)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 1400 -> 429, change: 971)
+  - Agent 0: ACCEPTS (cost: 208 -> 175, change: 33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 16
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 1 to Agent 3
+  - Transfer client 9 from Agent 0 to Agent 0
+  - Transfer client 6 from Agent 2 to Agent 2
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 3: ACCEPTS (cost: 127 -> 104, change: 23)
+  - Agent 1: ACCEPTS (cost: 429 -> 201, change: 228)
+  - Agent 0: REJECTS (cost: 175)
+  - Agent 2: REJECTS (cost: 195)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 17
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 3 to Agent 2
+  - Transfer client 9 from Agent 0 to Agent 0
+  - Transfer client 6 from Agent 2 to Agent 3
+  - Transfer client 7 from Agent 1 to Agent 1
+
+Responses:
+  - Agent 2: ACCEPTS (cost: 195 -> 134, change: 61)
+  - Agent 3: REJECTS (cost: 104)
+  - Agent 0: REJECTS (cost: 175)
+  - Agent 1: REJECTS (cost: 201)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 18
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 3 to Agent 3
+  - Transfer client 9 from Agent 0 to Agent 1
+  - Transfer client 6 from Agent 2 to Agent 2
+  - Transfer client 7 from Agent 1 to Agent 0
+
+Responses:
+  - Agent 1: ACCEPTS (cost: 201 -> 1400, change: -1199)
+  - Agent 0: REJECTS (cost: 175)
+  - Agent 2: REJECTS (cost: 195)
+  - Agent 3: REJECTS (cost: 104)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 19
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 3 to Agent 3
+  - Transfer client 9 from Agent 0 to Agent 0
+  - Transfer client 6 from Agent 2 to Agent 1
+  - Transfer client 7 from Agent 1 to Agent 2
+
+Responses:
+  - Agent 2: ACCEPTS (cost: 195 -> 156, change: 39)
+  - Agent 1: ACCEPTS (cost: 201 -> 193, change: 8)
+  - Agent 0: REJECTS (cost: 175)
+  - Agent 3: REJECTS (cost: 104)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 20
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 3 to Agent 1
+  - Transfer client 9 from Agent 0 to Agent 0
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 2 to Agent 2
+
+Responses:
+  - Agent 3: REJECTS (cost: 104)
+  - Agent 1: ACCEPTS (cost: 193 -> 429, change: -236)
+  - Agent 0: REJECTS (cost: 175)
+  - Agent 2: REJECTS (cost: 156)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 21
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 3 to Agent 3
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 1
+  - Transfer client 7 from Agent 2 to Agent 0
+
+Responses:
+  - Agent 2: REJECTS (cost: 156)
+  - Agent 0: REJECTS (cost: 175)
+  - Agent 1: REJECTS (cost: 193)
+  - Agent 3: REJECTS (cost: 104)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 22
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 3 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 3
+  - Transfer client 6 from Agent 1 to Agent 1
+  - Transfer client 7 from Agent 2 to Agent 2
+
+Responses:
+  - Agent 3: REJECTS (cost: 104)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+  - Agent 1: REJECTS (cost: 193)
+  - Agent 2: REJECTS (cost: 156)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 23
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 3 to Agent 2
+  - Transfer client 9 from Agent 0 to Agent 0
+  - Transfer client 6 from Agent 1 to Agent 1
+  - Transfer client 7 from Agent 2 to Agent 3
+
+Responses:
+  - Agent 2: ACCEPTS (cost: 156 -> 134, change: 22)
+  - Agent 3: ACCEPTS (cost: 104 -> 127, change: -23)
+  - Agent 0: REJECTS (cost: 175)
+  - Agent 1: REJECTS (cost: 193)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 24
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 2
+  - Transfer client 9 from Agent 0 to Agent 0
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: REJECTS (cost: 175)
+  - Agent 2: REJECTS (cost: 134)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 25
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 26
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 27
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 28
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 29
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 30
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 31
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 32
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 33
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 34
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 35
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 36
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 37
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 38
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 39
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 40
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 41
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 42
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 43
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 44
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 45
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 46
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 47
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 48
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 49
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 50
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 51
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 52
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 53
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 54
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 55
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 56
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 57
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 58
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 59
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 60
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 61
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 62
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 63
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 64
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 65
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 66
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 67
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 68
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 69
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 70
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 71
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 72
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 73
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 74
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 75
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 76
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 77
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 78
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 79
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 80
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 81
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 82
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 83
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 84
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 85
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 86
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 87
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 88
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 89
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 90
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 91
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 92
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 93
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 94
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 95
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 96
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 97
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 98
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 99
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+ROUND 100
+----------------------------------------
+Mediator proposes:
+  - Transfer client 8 from Agent 2 to Agent 0
+  - Transfer client 9 from Agent 0 to Agent 2
+  - Transfer client 6 from Agent 1 to Agent 3
+  - Transfer client 7 from Agent 3 to Agent 1
+
+Responses:
+  - Agent 2: REJECTS (cost: 134)
+  - Agent 3: REJECTS (cost: 127)
+  - Agent 1: ACCEPTS (cost: 193 -> 201, change: -8)
+  - Agent 0: ACCEPTS (cost: 175 -> 208, change: -33)
+
+[REJECTED] FULL REJECTION - Continuing negotiation
+
+CLOSING
+----------------------------------------
+[FAILED] No agreement reached.
+
+Negotiation completed in 100 rounds (3783.68 seconds)
+Full acceptances: 0
+Full rejections: 100
+
+Final allocation of clients:
+  - Agent 2: Clients [8]
+  - Agent 0: Clients [9]
+  - Agent 1: Clients [6]
+  - Agent 3: Clients [7]
+
+Cost changes:
+  - Agent 0: 208 -> 175 (net change: -33, total from accepted rounds: 0)
+  - Agent 1: 1400 -> 193 (net change: -1207, total from accepted rounds: 0)
+  - Agent 2: 195 -> 134 (net change: -61, total from accepted rounds: 0)
+  - Agent 3: 127 -> 127 (net change: 0, total from accepted rounds: 0)
+
+Average utility change: -325.2
+
+========================================
+Negotiation concluded at 2025-12-21 11:44:35
+
+=== Log Files ===
+- JSON: /Users/nazliozbek/Desktop/darp_nego-development_new/logs/2025_11_06_21_52_case_1_114355/negotiation/negotiation_2025_11_06_21_52_case_1_114355.json

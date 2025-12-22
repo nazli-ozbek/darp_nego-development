@@ -1,0 +1,432 @@
+{
+  "session_id": "2025_11_06_21_52_case_1_114355",
+  "timestamp": "2025-12-21 11:44:35",
+  "initial_routes": {
+    "0": {
+      "agent_id": "0",
+      "total_vehicles": 3,
+      "vehicles_used": 2,
+      "total_time": 541,
+      "total_waiting_time": 333,
+      "clients_served": [
+        8,
+        0,
+        4,
+        12
+      ],
+      "routes": [
+        {
+          "vehicle_id": 1,
+          "start_time": 0,
+          "end_time": 378,
+          "duration": 378,
+          "waiting_time": 306,
+          "capacity": 17,
+          "max_load": 1,
+          "client_pickups": [
+            8
+          ],
+          "client_deliveries": [
+            8
+          ],
+          "stops": 3
+        },
+        {
+          "vehicle_id": 2,
+          "start_time": 267,
+          "end_time": 430,
+          "duration": 163,
+          "waiting_time": 27,
+          "capacity": 20,
+          "max_load": 6,
+          "client_pickups": [
+            4,
+            0,
+            12
+          ],
+          "client_deliveries": [
+            4,
+            0,
+            12
+          ],
+          "stops": 7
+        }
+      ],
+      "late_arrivals": [],
+      "delayed_clients": {
+        "pickup": [],
+        "delivery": []
+      },
+      "cost": 208,
+      "client_count": 4,
+      "pickup_delays": 0,
+      "delivery_delays": 0,
+      "total_delays": 0
+    },
+    "1": {
+      "agent_id": "1",
+      "total_vehicles": 1,
+      "vehicles_used": 1,
+      "total_time": 347,
+      "total_waiting_time": 146,
+      "clients_served": [
+        1,
+        5,
+        9
+      ],
+      "routes": [
+        {
+          "vehicle_id": 0,
+          "start_time": 0,
+          "end_time": 347,
+          "duration": 347,
+          "waiting_time": 146,
+          "capacity": 18,
+          "max_load": 3,
+          "client_pickups": [
+            1,
+            9,
+            5
+          ],
+          "client_deliveries": [
+            1,
+            9,
+            5
+          ],
+          "stops": 7
+        }
+      ],
+      "late_arrivals": [
+        {
+          "node": 2,
+          "late_by": 9,
+          "client_id": 9,
+          "location_type": "pickup",
+          "vehicle_id": 0,
+          "scheduled_arrival": 76,
+          "actual_arrival": 85
+        },
+        {
+          "node": 5,
+          "late_by": 3,
+          "client_id": 9,
+          "location_type": "delivery",
+          "vehicle_id": 0,
+          "scheduled_arrival": 117,
+          "actual_arrival": 120
+        }
+      ],
+      "delayed_clients": {
+        "pickup": [
+          9
+        ],
+        "delivery": [
+          9
+        ]
+      },
+      "cost": 1400,
+      "client_count": 3,
+      "pickup_delays": 1,
+      "delivery_delays": 1,
+      "total_delays": 2
+    },
+    "2": {
+      "agent_id": "2",
+      "total_vehicles": 1,
+      "vehicles_used": 1,
+      "total_time": 262,
+      "total_waiting_time": 46,
+      "clients_served": [
+        2,
+        10,
+        6
+      ],
+      "routes": [
+        {
+          "vehicle_id": 0,
+          "start_time": 60,
+          "end_time": 322,
+          "duration": 262,
+          "waiting_time": 46,
+          "capacity": 6,
+          "max_load": 3,
+          "client_pickups": [
+            2,
+            6,
+            10
+          ],
+          "client_deliveries": [
+            2,
+            6,
+            10
+          ],
+          "stops": 7
+        }
+      ],
+      "late_arrivals": [],
+      "delayed_clients": {
+        "pickup": [],
+        "delivery": []
+      },
+      "cost": 195,
+      "client_count": 3,
+      "pickup_delays": 0,
+      "delivery_delays": 0,
+      "total_delays": 0
+    },
+    "3": {
+      "agent_id": "3",
+      "total_vehicles": 2,
+      "vehicles_used": 2,
+      "total_time": 552,
+      "total_waiting_time": 425,
+      "clients_served": [
+        3,
+        11,
+        7
+      ],
+      "routes": [
+        {
+          "vehicle_id": 0,
+          "start_time": 0,
+          "end_time": 511,
+          "duration": 511,
+          "waiting_time": 412,
+          "capacity": 11,
+          "max_load": 4,
+          "client_pickups": [
+            7,
+            11
+          ],
+          "client_deliveries": [
+            7,
+            11
+          ],
+          "stops": 5
+        },
+        {
+          "vehicle_id": 1,
+          "start_time": 398,
+          "end_time": 439,
+          "duration": 41,
+          "waiting_time": 13,
+          "capacity": 7,
+          "max_load": 5,
+          "client_pickups": [
+            3
+          ],
+          "client_deliveries": [
+            3
+          ],
+          "stops": 3
+        }
+      ],
+      "late_arrivals": [],
+      "delayed_clients": {
+        "pickup": [],
+        "delivery": []
+      },
+      "cost": 127,
+      "client_count": 3,
+      "pickup_delays": 0,
+      "delivery_delays": 0,
+      "total_delays": 0
+    }
+  },
+  "round_routes": {},
+  "final_routes": {
+    "0": {
+      "agent_id": "0",
+      "total_vehicles": 3,
+      "vehicles_used": 1,
+      "total_time": 373,
+      "total_waiting_time": 198,
+      "clients_served": [
+        0,
+        9,
+        4,
+        12
+      ],
+      "routes": [
+        {
+          "vehicle_id": 2,
+          "start_time": 57,
+          "end_time": 430,
+          "duration": 373,
+          "waiting_time": 198,
+          "capacity": 20,
+          "max_load": 6,
+          "client_pickups": [
+            9,
+            4,
+            0,
+            12
+          ],
+          "client_deliveries": [
+            9,
+            4,
+            0,
+            12
+          ],
+          "stops": 9
+        }
+      ],
+      "late_arrivals": [],
+      "delayed_clients": {
+        "pickup": [],
+        "delivery": []
+      },
+      "cost": 175,
+      "client_count": 4,
+      "pickup_delays": 0,
+      "delivery_delays": 0,
+      "total_delays": 0
+    },
+    "1": {
+      "agent_id": "1",
+      "total_vehicles": 1,
+      "vehicles_used": 1,
+      "total_time": 347,
+      "total_waiting_time": 146,
+      "clients_served": [
+        1,
+        5,
+        6
+      ],
+      "routes": [
+        {
+          "vehicle_id": 0,
+          "start_time": 0,
+          "end_time": 347,
+          "duration": 347,
+          "waiting_time": 146,
+          "capacity": 18,
+          "max_load": 2,
+          "client_pickups": [
+            1,
+            6,
+            5
+          ],
+          "client_deliveries": [
+            1,
+            6,
+            5
+          ],
+          "stops": 7
+        }
+      ],
+      "late_arrivals": [],
+      "delayed_clients": {
+        "pickup": [],
+        "delivery": []
+      },
+      "cost": 193,
+      "client_count": 3,
+      "pickup_delays": 0,
+      "delivery_delays": 0,
+      "total_delays": 0
+    },
+    "2": {
+      "agent_id": "2",
+      "total_vehicles": 1,
+      "vehicles_used": 1,
+      "total_time": 292,
+      "total_waiting_time": 137,
+      "clients_served": [
+        8,
+        2,
+        10
+      ],
+      "routes": [
+        {
+          "vehicle_id": 0,
+          "start_time": 60,
+          "end_time": 352,
+          "duration": 292,
+          "waiting_time": 137,
+          "capacity": 6,
+          "max_load": 3,
+          "client_pickups": [
+            2,
+            10,
+            8
+          ],
+          "client_deliveries": [
+            2,
+            10,
+            8
+          ],
+          "stops": 7
+        }
+      ],
+      "late_arrivals": [],
+      "delayed_clients": {
+        "pickup": [],
+        "delivery": []
+      },
+      "cost": 134,
+      "client_count": 3,
+      "pickup_delays": 0,
+      "delivery_delays": 0,
+      "total_delays": 0
+    },
+    "3": {
+      "agent_id": "3",
+      "total_vehicles": 2,
+      "vehicles_used": 2,
+      "total_time": 552,
+      "total_waiting_time": 425,
+      "clients_served": [
+        3,
+        11,
+        7
+      ],
+      "routes": [
+        {
+          "vehicle_id": 0,
+          "start_time": 0,
+          "end_time": 511,
+          "duration": 511,
+          "waiting_time": 412,
+          "capacity": 11,
+          "max_load": 4,
+          "client_pickups": [
+            7,
+            11
+          ],
+          "client_deliveries": [
+            7,
+            11
+          ],
+          "stops": 5
+        },
+        {
+          "vehicle_id": 1,
+          "start_time": 398,
+          "end_time": 439,
+          "duration": 41,
+          "waiting_time": 13,
+          "capacity": 7,
+          "max_load": 5,
+          "client_pickups": [
+            3
+          ],
+          "client_deliveries": [
+            3
+          ],
+          "stops": 3
+        }
+      ],
+      "late_arrivals": [],
+      "delayed_clients": {
+        "pickup": [],
+        "delivery": []
+      },
+      "cost": 127,
+      "client_count": 3,
+      "pickup_delays": 0,
+      "delivery_delays": 0,
+      "total_delays": 0
+    }
+  }
+}

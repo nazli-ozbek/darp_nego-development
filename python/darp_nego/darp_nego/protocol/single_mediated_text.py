@@ -31,7 +31,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         default_min_samples = max(5, int(self.max_rounds * 0.2))
         self.min_samples_for_model = kwargs.get("min_samples_for_model", default_min_samples)
         self.max_model_swaps = kwargs.get("max_model_swaps", 3)
-        self.swap_probability_floor = kwargs.get("swap_probability_floor", 0.5)
+        self.swap_probability_floor = kwargs.get("swap_probability_floor", 0.1)
         self.agent_deterministic_accepts = set()
         self.frozen_pair_keys = set()
         self.current_pair_attempts = []
