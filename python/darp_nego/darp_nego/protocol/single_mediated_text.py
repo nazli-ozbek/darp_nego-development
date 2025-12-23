@@ -35,8 +35,9 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self.max_model_swaps = kwargs.get("max_model_swaps", 3)
         self.swap_probability_floor = kwargs.get("swap_probability_floor", 0.5)
         self.agent_deterministic_accepts = set()
-        self.frozen_pair_keys = set()
+        self.frozen_pair_keys = {}
         self.current_pair_attempts = []
+        self.pair_freeze_rounds = kwargs.get("pair_freeze_rounds", 0)
         self.snapshot_rounds = set(kwargs.get("snapshot_rounds", (50, 100, 150, 200)))
         self._clear_case_statistics()
 
@@ -335,11 +336,21 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             self.current_pair_attempts = pair_attempts
 
     def _is_pair_frozen(self, agent_a: str, client_a: int, agent_b: str, client_b: int) -> bool:
-        return self._pair_key(agent_a, client_a, agent_b, client_b) in self.frozen_pair_keys
+        key = self._pair_key(agent_a, client_a, agent_b, client_b)
+        if not self.frozen_pair_keys:
+            return False
+        until_round = self.frozen_pair_keys.get(key)
+        if until_round is None:
+            return False
+        round_num = getattr(self, "current_round_number", 0)
+        return round_num <= until_round
 
     def _freeze_pair(self, agent_a: str, client_a: int, agent_b: str, client_b: int):
         key = self._pair_key(agent_a, client_a, agent_b, client_b)
-        self.frozen_pair_keys.add(key)
+        if self.pair_freeze_rounds <= 0:
+            return
+        round_num = getattr(self, "current_round_number", 0)
+        self.frozen_pair_keys[key] = round_num + self.pair_freeze_rounds
 
     def _apply_partial_swaps_to_agents(self, swap_decisions):
         """
