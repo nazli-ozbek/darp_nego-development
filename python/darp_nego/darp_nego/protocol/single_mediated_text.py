@@ -266,8 +266,9 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             self.swap_training_buffers[agent_b].append((features_b, label_value_b))
             recent_samples[agent_a].append((features_a, label_value_a))
             recent_samples[agent_b].append((features_b, label_value_b))
+            # Freeze attempted pairs to avoid repeating the same swap even on rejection.
+            self._freeze_pair(agent_a, client_a, agent_b, client_b)
             if accepted_by_both:
-                self._freeze_pair(agent_a, client_a, agent_b, client_b)
                 self._mark_deterministic_swap(agent_a, client_a, client_b)
                 self._mark_deterministic_swap(agent_b, client_b, client_a)
         return dict(recent_samples)
