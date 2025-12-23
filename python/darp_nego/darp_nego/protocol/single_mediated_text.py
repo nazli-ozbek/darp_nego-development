@@ -254,18 +254,19 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             agent_b = pair["agent_b"]
             expected_a_owner = agent_b
             expected_b_owner = agent_a
-            is_accepted = (
-                    acceptable_part.get(client_a) == expected_a_owner
-                    and acceptable_part.get(client_b) == expected_b_owner
+            accepted_by_both = (
+                acceptable_part.get(client_a) == expected_a_owner
+                and acceptable_part.get(client_b) == expected_b_owner
             )
-            label_value = 1.0 if is_accepted else 0.0
+            label_value_a = 1.0 if agent_responses.get(agent_a, {}).get("accepted", False) else 0.0
+            label_value_b = 1.0 if agent_responses.get(agent_b, {}).get("accepted", False) else 0.0
             features_a = self._build_agent_swap_features(client_a, client_b)
             features_b = self._build_agent_swap_features(client_b, client_a)
-            self.swap_training_buffers[agent_a].append((features_a, label_value))
-            self.swap_training_buffers[agent_b].append((features_b, label_value))
-            recent_samples[agent_a].append((features_a, label_value))
-            recent_samples[agent_b].append((features_b, label_value))
-            if label_value >= 0.5:
+            self.swap_training_buffers[agent_a].append((features_a, label_value_a))
+            self.swap_training_buffers[agent_b].append((features_b, label_value_b))
+            recent_samples[agent_a].append((features_a, label_value_a))
+            recent_samples[agent_b].append((features_b, label_value_b))
+            if accepted_by_both:
                 self._freeze_pair(agent_a, client_a, agent_b, client_b)
                 self._mark_deterministic_swap(agent_a, client_a, client_b)
                 self._mark_deterministic_swap(agent_b, client_b, client_a)
