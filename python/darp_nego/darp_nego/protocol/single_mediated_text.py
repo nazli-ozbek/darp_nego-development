@@ -38,6 +38,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self.recent_pair_attempts = {}
         self.swap_pair_cooldown_rounds = kwargs.get("swap_pair_cooldown_rounds", 0)
         self.current_pair_attempts = []
+        self.current_pair_source = None
         self.snapshot_rounds = set(kwargs.get("snapshot_rounds", (50, 100, 150, 200)))
         self._clear_case_statistics()
 
@@ -129,6 +130,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
 
         dataset_size = self._total_buffer_size()
         if dataset_size < self.min_samples_for_model:
+            self.current_pair_source = "heuristic"
             if method == "farthest":
                 print(
                     f"[GEN] Cold start (dataset={dataset_size}, min={self.min_samples_for_model}) -> farthest-distance proposal")
@@ -145,9 +147,11 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
 
         outcome = self._generate_model_guided_outcome()
         if outcome is not None:
+            self.current_pair_source = "model"
             return outcome
 
         print("[GEN] Model proposal exhausted, reverting to farthest-distance heuristic.")
+        self.current_pair_source = "heuristic"
         if method == "farthest":
             return self.domain.generate_outcome_farthest_distance(
                 revealed_clients=None, round_history=round_history
@@ -250,6 +254,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         if not pair_attempts:
             return {}
         recent_samples = defaultdict(list)
+        model_active = self._total_buffer_size() >= self.min_samples_for_model
         for pair in pair_attempts:
             client_a = pair["client_a"]
             agent_a = pair["agent_a"]
@@ -269,8 +274,12 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             self.swap_training_buffers[agent_b].append((features_b, label_value_b))
             recent_samples[agent_a].append((features_a, label_value_a))
             recent_samples[agent_b].append((features_b, label_value_b))
-            # Apply a cooldown to avoid repeating recent pair attempts.
-            if self.swap_pair_cooldown_rounds > 0:
+            # Apply a cooldown only for model-guided attempts after the model is active.
+            if (
+                model_active
+                and self.current_pair_source == "model"
+                and self.swap_pair_cooldown_rounds > 0
+            ):
                 self.recent_pair_attempts[self._pair_key(agent_a, client_a, agent_b, client_b)] = round_num
             if accepted_by_both:
                 self._mark_deterministic_swap(agent_a, client_a, client_b)
