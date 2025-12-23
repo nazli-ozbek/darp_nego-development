@@ -247,15 +247,19 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
                     acceptable_part.get(client_a) == expected_a_owner
                     and acceptable_part.get(client_b) == expected_b_owner
             )
-            label_value = 1.0 if is_accepted else 0.0
+            accepted_a = agent_responses.get(agent_a, {}).get("accepted", False)
+            accepted_b = agent_responses.get(agent_b, {}).get("accepted", False)
+            label_a = 1.0 if accepted_a else 0.0
+            label_b = 1.0 if accepted_b else 0.0
             features_a = self._build_agent_swap_features(client_a, client_b)
             features_b = self._build_agent_swap_features(client_b, client_a)
-            label_tensor = torch.tensor([[label_value]], dtype=torch.float32)
-            self.swap_training_buffers[agent_a].append((features_a, label_tensor))
-            self.swap_training_buffers[agent_b].append((features_b, label_tensor.clone()))
-            recent_samples[agent_a].append((features_a, label_tensor))
-            recent_samples[agent_b].append((features_b, label_tensor.clone()))
-            if label_value >= 0.5:
+            label_tensor_a = torch.tensor([[label_a]], dtype=torch.float32)
+            label_tensor_b = torch.tensor([[label_b]], dtype=torch.float32)
+            self.swap_training_buffers[agent_a].append((features_a, label_tensor_a))
+            self.swap_training_buffers[agent_b].append((features_b, label_tensor_b))
+            recent_samples[agent_a].append((features_a, label_tensor_a))
+            recent_samples[agent_b].append((features_b, label_tensor_b))
+            if is_accepted:
                 self._freeze_pair(agent_a, client_a, agent_b, client_b)
                 self._mark_deterministic_swap(agent_a, client_a, client_b)
                 self._mark_deterministic_swap(agent_b, client_b, client_a)
