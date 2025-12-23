@@ -35,6 +35,8 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self.swap_probability_floor = kwargs.get("swap_probability_floor", 0.1)
         self.agent_deterministic_accepts = set()
         self.frozen_pair_keys = set()
+        self.recent_pair_attempts = {}
+        self.swap_pair_cooldown_rounds = kwargs.get("swap_pair_cooldown_rounds", 0)
         self.current_pair_attempts = []
         self.snapshot_rounds = set(kwargs.get("snapshot_rounds", (50, 100, 150, 200)))
         self._clear_case_statistics()
@@ -48,6 +50,7 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
     def _clear_case_statistics(self):
         """Reset per-case statistics for swap generation."""
         self.frozen_pair_keys.clear()
+        self.recent_pair_attempts.clear()
 
     def _reset_learning_state(self):
         """Reset the logistic regression model and all accumulated data."""
@@ -266,8 +269,9 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             self.swap_training_buffers[agent_b].append((features_b, label_value_b))
             recent_samples[agent_a].append((features_a, label_value_a))
             recent_samples[agent_b].append((features_b, label_value_b))
-            # Freeze attempted pairs to avoid repeating the same swap even on rejection.
-            self._freeze_pair(agent_a, client_a, agent_b, client_b)
+            # Apply a cooldown to avoid repeating recent pair attempts.
+            if self.swap_pair_cooldown_rounds > 0:
+                self.recent_pair_attempts[self._pair_key(agent_a, client_a, agent_b, client_b)] = round_num
             if accepted_by_both:
                 self._mark_deterministic_swap(agent_a, client_a, client_b)
                 self._mark_deterministic_swap(agent_b, client_b, client_a)
@@ -326,7 +330,16 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             self.current_pair_attempts = pair_attempts
 
     def _is_pair_frozen(self, agent_a: str, client_a: int, agent_b: str, client_b: int) -> bool:
-        return self._pair_key(agent_a, client_a, agent_b, client_b) in self.frozen_pair_keys
+        key = self._pair_key(agent_a, client_a, agent_b, client_b)
+        if key in self.frozen_pair_keys:
+            return True
+        if self.swap_pair_cooldown_rounds <= 0:
+            return False
+        last_attempt = self.recent_pair_attempts.get(key)
+        if last_attempt is None:
+            return False
+        round_num = getattr(self, "current_round_number", 0)
+        return (round_num - last_attempt) <= self.swap_pair_cooldown_rounds
 
     def _freeze_pair(self, agent_a: str, client_a: int, agent_b: str, client_b: int):
         key = self._pair_key(agent_a, client_a, agent_b, client_b)
