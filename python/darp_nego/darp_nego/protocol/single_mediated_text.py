@@ -30,15 +30,15 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self.training_buffer_maxlen = kwargs.get("swap_buffer_maxlen", 500)
         self.agent_swap_models = {}
         self.swap_training_buffers = defaultdict(lambda: deque(maxlen=self.training_buffer_maxlen))
-        default_min_samples = 30
+        default_min_samples = 20
         self.min_samples_for_model = kwargs.get("min_samples_for_model", default_min_samples)
-        self.max_model_swaps = kwargs.get("max_model_swaps", 3)
-        self.swap_probability_floor = kwargs.get("swap_probability_floor", 0.5)
+        self.max_model_swaps = kwargs.get("max_model_swaps", 5)
+        self.swap_probability_floor = kwargs.get("swap_probability_floor", 0)
         self.agent_deterministic_accepts = set()
         self.frozen_pair_keys = {}
         self.current_pair_attempts = []
         self.current_pair_source = None
-        self.pair_freeze_rounds = kwargs.get("pair_freeze_rounds", 0)
+        self.pair_freeze_rounds = kwargs.get("pair_freeze_rounds", 3)
         self.snapshot_rounds = set(kwargs.get("snapshot_rounds", (50, 100, 150, 200)))
         self._clear_case_statistics()
 
