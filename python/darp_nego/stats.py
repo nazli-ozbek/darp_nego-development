@@ -498,7 +498,7 @@ def main():
     print("=" * 80)
 
     try:
-        log_roots = ["logs", "logs_50", "logs_100", "logs_150", "logs_200"]
+        log_roots = ["logs"]
         base_dir = os.path.abspath(os.path.dirname(__file__))
 
         for log_root_name in log_roots:

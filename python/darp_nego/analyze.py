@@ -871,7 +871,7 @@ def create_agent_scenario_table(log_dirs, output_dir="stats"):
 
 
 if __name__ == "__main__":
-    log_roots = ["logs", "logs_50", "logs_100", "logs_150", "logs_200"]
+    log_roots = ["logs"]
     base_dir = os.path.abspath(os.path.dirname(__file__))
 
     for log_root_name in log_roots:

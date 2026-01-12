@@ -1,5 +1,4 @@
 from typing import Optional, Iterable
-import os
 import random
 import math
 from collections import defaultdict, deque
@@ -39,7 +38,6 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self.current_pair_attempts = []
         self.current_pair_source = None
         self.pair_freeze_rounds = kwargs.get("pair_freeze_rounds", 3)
-        self.snapshot_rounds = set(kwargs.get("snapshot_rounds", (50, 100, 150, 200)))
         self._clear_case_statistics()
 
         print("[INIT] Mediator initialized with logistic swap model (case-specific)")
@@ -385,37 +383,6 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
                 agent.darp_problem = agent._last_utility_problem
                 agent._last_utility_problem = None
 
-    def _write_snapshot(self, snapshot_round: int, round_number: int, agreement_reached: bool):
-        # Materialize a round-local final_state/final_routes so stats scripts can read snapshots.
-        self.logger.log_final_state(agreement_reached, round_number, self.participants, self.domain)
-        for agent in self.participants.values():
-            self.routing_logger.log_darp_solution(agent.agent_id, "final", agent.darp_problem)
-        snapshot_root = f"logs_{snapshot_round}"
-        neg_dir = os.path.join(snapshot_root, self.session_id, "negotiation")
-        routing_dir = os.path.join(snapshot_root, self.session_id, "routing")
-        os.makedirs(neg_dir, exist_ok=True)
-        os.makedirs(routing_dir, exist_ok=True)
-        prev_neg_dir = self.logger.log_dir
-        prev_routing_dir = self.routing_logger.log_dir
-        try:
-            self.logger.log_dir = neg_dir
-            self.routing_logger.log_dir = routing_dir
-            self.routing_logger.save_logs()
-            self.logger.save_logs()
-        finally:
-            self.logger.log_dir = prev_neg_dir
-            self.routing_logger.log_dir = prev_routing_dir
-
-    def _snapshot_logs(self, round_number: int):
-        if round_number not in self.snapshot_rounds:
-            return
-        self._write_snapshot(round_number, round_number, False)
-
-    def _snapshot_final_logs(self, final_round: int, agreement_reached: bool):
-        for snapshot_round in sorted(self.snapshot_rounds):
-            if snapshot_round >= final_round:
-                self._write_snapshot(snapshot_round, final_round, agreement_reached)
-
     # --------------------------------------------------
     # Prenegotiation
     # --------------------------------------------------
@@ -481,7 +448,6 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
                 for agent in self.participants.values():
                     self.routing_logger.log_darp_solution(agent.agent_id, "final", agent.darp_problem)
                 self.routing_logger.save_logs()
-                self._snapshot_final_logs(round_number, False)
                 return self.logger.save_logs()
 
             print(f"💡 Proposed outcome: {outcome}")
@@ -497,8 +463,6 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
                 self.logger.current_proposed_transfers = []
 
             self.logger.log_round(round_number, is_accepted, self.participants, round_summary)
-            self._snapshot_logs(round_number)
-
             # Termination condition
             if is_accepted:
                 print(f"\n🎉 Agreement reached after {round_number} rounds!")
@@ -506,7 +470,6 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
                 for agent in self.participants.values():
                     self.routing_logger.log_darp_solution(agent.agent_id, "final", agent.darp_problem)
                 self.routing_logger.save_logs()
-                self._snapshot_final_logs(round_number, True)
                 return self.logger.save_logs()
 
             round_idx += 1
@@ -516,7 +479,6 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         for agent in self.participants.values():
             self.routing_logger.log_darp_solution(agent.agent_id, "final", agent.darp_problem)
         self.routing_logger.save_logs()
-        self._snapshot_final_logs(self.max_rounds, False)
         return self.logger.save_logs()
 
     # --------------------------------------------------
