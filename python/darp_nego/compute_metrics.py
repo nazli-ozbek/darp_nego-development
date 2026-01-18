@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+
+"""Compute scenario distribution metrics from company_cases.json."""
+
+from __future__ import annotations
+
+import argparse
+import os
+from typing import Dict, List
+
+import numpy as np
+import pandas as pd
+
+from metrics.company_metrics import compute_company_metrics
+from metrics.case_metrics import compute_case_metrics
+from metrics.dataset_metrics import build_feature_vectors, pca_embedding, umap_embedding
+from metrics.io import load_company_cases
+from metrics.plots import (
+    save_case_distributions,
+    save_case_metrics_table,
+    save_company_distributions,
+    save_company_metrics_table,
+    save_dbscan_examples,
+    save_embedding_scatter,
+    save_feature_correlation,
+    save_moran_grids,
+)
+
+
+def _extract_cases(data: Dict) -> Dict:
+    return {k: v for k, v in data.items() if isinstance(v, dict) and "companies" in v}
+
+
+def compute_all_metrics(
+    data: Dict,
+    permutations: int,
+    seed: int,
+) -> Dict[str, pd.DataFrame]:
+    company_rows: List[Dict] = []
+    case_rows: List[Dict] = []
+
+    cases = _extract_cases(data)
+    for case_id, case_data in cases.items():
+        coordinates = case_data.get("coordinates", {})
+        companies = case_data.get("companies", {})
+        for company_id, company_data in companies.items():
+            company_rows.append(
+                compute_company_metrics(case_id, company_id, company_data, coordinates)
+            )
+
+        case_rows.append(
+            compute_case_metrics(case_id, case_data, permutations=permutations, seed=seed)
+        )
+
+    company_df = pd.DataFrame(company_rows)
+    case_df = pd.DataFrame(case_rows)
+    feature_df = build_feature_vectors(case_df, company_df) if not case_df.empty else pd.DataFrame()
+    return {
+        "company": company_df,
+        "case": case_df,
+        "features": feature_df,
+    }
+
+
+def write_outputs(
+    out_dir: str,
+    case_df: pd.DataFrame,
+    company_df: pd.DataFrame,
+    feature_df: pd.DataFrame,
+    seed: int,
+) -> Dict[str, pd.DataFrame]:
+    dataset_dir = os.path.join(out_dir, "dataset")
+    cases_dir = os.path.join(out_dir, "cases")
+    os.makedirs(dataset_dir, exist_ok=True)
+    os.makedirs(cases_dir, exist_ok=True)
+    plots_dir = os.path.join(dataset_dir, "plots")
+    os.makedirs(plots_dir, exist_ok=True)
+
+    case_path = os.path.join(dataset_dir, "case_metrics.csv")
+    company_path = os.path.join(dataset_dir, "company_metrics.csv")
+    case_df.to_csv(case_path, index=False)
+    company_df.to_csv(company_path, index=False)
+    if not feature_df.empty:
+        feature_df.to_csv(os.path.join(dataset_dir, "feature_vectors.csv"), index=False)
+
+    embeddings = {}
+    if not feature_df.empty:
+        pca_df, _ = pca_embedding(feature_df, seed=seed)
+        pca_path = os.path.join(dataset_dir, "pca_2d.csv")
+        pca_df.to_csv(pca_path, index=False)
+        embeddings["pca"] = pca_df
+
+        umap_df = umap_embedding(feature_df, seed=seed)
+        if umap_df is not None:
+            umap_path = os.path.join(dataset_dir, "umap_2d.csv")
+            umap_df.to_csv(umap_path, index=False)
+            embeddings["umap"] = umap_df
+
+        try:
+            import matplotlib.pyplot as plt
+
+            plt.figure(figsize=(6, 5))
+            plt.scatter(pca_df["pc1"], pca_df["pc2"], s=30, alpha=0.8, color="#2a9d8f")
+            plt.xlabel("PC1")
+            plt.ylabel("PC2")
+            plt.title("Case Metrics PCA")
+            plt.tight_layout()
+            plt.savefig(os.path.join(plots_dir, "pca_scatter.png"), dpi=200)
+            plt.close()
+        except Exception:
+            pass
+
+    if not case_df.empty:
+        for case_id in case_df["case_id"].unique():
+            case_dir = os.path.join(cases_dir, case_id)
+            os.makedirs(case_dir, exist_ok=True)
+            case_row = case_df[case_df["case_id"] == case_id]
+            company_rows = company_df[company_df["case_id"] == case_id]
+            case_row.to_csv(os.path.join(case_dir, "case_metrics.csv"), index=False)
+            company_rows.to_csv(os.path.join(case_dir, "company_metrics.csv"), index=False)
+
+    return embeddings
+
+
+def generate_plots(
+    data: Dict,
+    out_dir: str,
+    case_df: pd.DataFrame,
+    company_df: pd.DataFrame,
+    feature_df: pd.DataFrame,
+    embeddings: Dict[str, pd.DataFrame],
+) -> None:
+    dataset_dir = os.path.join(out_dir, "dataset")
+    save_case_metrics_table(case_df, dataset_dir)
+    save_company_metrics_table(company_df, dataset_dir)
+    save_case_distributions(case_df, dataset_dir)
+    save_company_distributions(company_df, dataset_dir)
+    save_feature_correlation(feature_df, dataset_dir)
+
+    if "pca" in embeddings:
+        save_embedding_scatter(
+            embeddings["pca"],
+            case_df,
+            os.path.join(dataset_dir, "plots", "pca_scatter_gini.png"),
+            "pc1",
+            "pc2",
+            "gini_requests",
+        )
+        save_embedding_scatter(
+            embeddings["pca"],
+            case_df,
+            os.path.join(dataset_dir, "plots", "pca_scatter_density.png"),
+            "pc1",
+            "pc2",
+            "global_density",
+        )
+
+    if "umap" in embeddings:
+        save_embedding_scatter(
+            embeddings["umap"],
+            case_df,
+            os.path.join(dataset_dir, "plots", "umap_scatter_gini.png"),
+            "umap1",
+            "umap2",
+            "gini_requests",
+        )
+
+    save_moran_grids(data, out_dir)
+    save_dbscan_examples(data, out_dir)
+
+
+def print_summary(case_df: pd.DataFrame) -> None:
+    if case_df.empty:
+        print("No cases processed.")
+        return
+
+    metrics = ["global_density", "morans_i", "gini_requests", "avg_overlap"]
+    summary = case_df[metrics].agg(["mean", "std"]).transpose()
+
+    print("\nProcessed cases:", len(case_df))
+    for metric in metrics:
+        mean_val = summary.loc[metric, "mean"]
+        std_val = summary.loc[metric, "std"]
+        print(f"{metric}: mean={mean_val:.4f} std={std_val:.4f}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Compute scenario distribution metrics.")
+    parser.add_argument("--input", required=True, help="Path to company_cases.json")
+    parser.add_argument("--out", required=True, help="Output directory for metrics CSVs")
+    parser.add_argument("--case-id", default=None, help="Optional case id to process")
+    parser.add_argument("--permutations", type=int, default=99, help="Moran's I permutations")
+    parser.add_argument("--seed", type=int, default=7, help="Random seed")
+    args = parser.parse_args()
+
+    np.random.seed(args.seed)
+    data = load_company_cases(args.input, case_id=args.case_id)
+    results = compute_all_metrics(data, permutations=args.permutations, seed=args.seed)
+    embeddings = write_outputs(
+        args.out,
+        results["case"],
+        results["company"],
+        results["features"],
+        seed=args.seed,
+    )
+    generate_plots(
+        data,
+        args.out,
+        results["case"],
+        results["company"],
+        results["features"],
+        embeddings,
+    )
+    print_summary(results["case"])
+
+
+if __name__ == "__main__":
+    main()

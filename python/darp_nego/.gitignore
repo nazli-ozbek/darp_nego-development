@@ -5,5 +5,4 @@ __pycache__
 example_instance.json
 .vscode
 logs/*
-metrics/*
 Instances
