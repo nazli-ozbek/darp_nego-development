@@ -22,6 +22,7 @@ from metrics.plots import (
     save_company_metrics_table,
     save_dbscan_examples,
     save_embedding_scatter,
+    save_embedding_scatter_plain,
     save_feature_correlation,
     save_moran_grids,
 )
@@ -156,6 +157,12 @@ def generate_plots(
         )
 
     if "umap" in embeddings:
+        save_embedding_scatter_plain(
+            embeddings["umap"],
+            os.path.join(dataset_dir, "plots", "umap_scatter.png"),
+            "umap1",
+            "umap2",
+        )
         save_embedding_scatter(
             embeddings["umap"],
             case_df,
@@ -164,9 +171,25 @@ def generate_plots(
             "umap2",
             "gini_requests",
         )
+        save_embedding_scatter(
+            embeddings["umap"],
+            case_df,
+            os.path.join(dataset_dir, "plots", "umap_scatter_density.png"),
+            "umap1",
+            "umap2",
+            "global_density",
+        )
 
     save_moran_grids(data, out_dir)
     save_dbscan_examples(data, out_dir)
+
+    if not company_df.empty:
+        for case_id in company_df["case_id"].unique():
+            case_dir = os.path.join(out_dir, "cases", case_id)
+            save_company_metrics_table(
+                company_df[company_df["case_id"] == case_id],
+                case_dir,
+            )
 
 
 def print_summary(case_df: pd.DataFrame) -> None:

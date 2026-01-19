@@ -213,6 +213,31 @@ def save_embedding_scatter(
     _safe_save(fig, out_path)
 
 
+def save_embedding_scatter_plain(
+    embedding_df: pd.DataFrame,
+    out_path: str,
+    x_col: str,
+    y_col: str,
+) -> None:
+    try:
+        import matplotlib.pyplot as plt
+    except Exception:
+        return
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.scatter(
+        embedding_df[x_col],
+        embedding_df[y_col],
+        s=40,
+        alpha=0.85,
+        color="#2a9d8f",
+    )
+    ax.set_xlabel(x_col.upper())
+    ax.set_ylabel(y_col.upper())
+    ax.set_title(f"{x_col.upper()} vs {y_col.upper()}")
+    _safe_save(fig, out_path)
+
+
 def _grid_counts(points: np.ndarray, grid_size: int) -> np.ndarray:
     mins = points.min(axis=0)
     maxs = points.max(axis=0)
@@ -251,10 +276,11 @@ def save_moran_grids(data: Dict, out_dir: str) -> None:
         plots_dir = os.path.join(out_dir, "cases", case_id, "plots")
         os.makedirs(plots_dir, exist_ok=True)
         fig, ax = plt.subplots(figsize=(5, 4))
-        ax.imshow(counts.T, origin="lower", cmap="magma")
+        im = ax.imshow(counts.T, origin="lower", cmap="magma")
         ax.set_title(f"Moran Grid {case_id}")
         ax.set_xticks([])
         ax.set_yticks([])
+        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="Requests per cell")
         _safe_save(fig, os.path.join(plots_dir, f"moran_grid_{case_id}.png"))
 
 
