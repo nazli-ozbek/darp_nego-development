@@ -1,3 +1,5 @@
 /.DS_Store
 /.idea
 /.venv
+metrics_out/
+case_visuals/
