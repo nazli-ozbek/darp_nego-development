@@ -9,3 +9,6 @@ shapely
 ortools
 torch
 umap-learn
+matplotlib
+numpy
+scikit-learn

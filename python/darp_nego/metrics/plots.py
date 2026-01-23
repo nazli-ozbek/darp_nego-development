@@ -9,7 +9,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from .company_metrics import _pickup_points, dbscan_labels
+from .company_metrics import _service_points, dbscan_labels
 
 
 def _safe_save(fig, path: str) -> None:
@@ -262,7 +262,7 @@ def save_moran_grids(data: Dict, out_dir: str) -> None:
         coordinates = case_data.get("coordinates", {})
         all_points: List[np.ndarray] = []
         for company_data in case_data.get("companies", {}).values():
-            points = _pickup_points(company_data, coordinates)
+            points = _service_points(company_data, coordinates)
             if points.shape[0] > 0:
                 all_points.append(points)
         if not all_points:
@@ -280,7 +280,7 @@ def save_moran_grids(data: Dict, out_dir: str) -> None:
         ax.set_title(f"Moran Grid {case_id}")
         ax.set_xticks([])
         ax.set_yticks([])
-        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="Requests per cell")
+        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="Service points per cell")
         _safe_save(fig, os.path.join(plots_dir, f"moran_grid_{case_id}.png"))
 
 
@@ -303,7 +303,7 @@ def save_dbscan_examples(data: Dict, out_dir: str) -> None:
         os.makedirs(plots_dir, exist_ok=True)
 
         for company_id, company_data in companies.items():
-            points = _pickup_points(company_data, coordinates)
+            points = _service_points(company_data, coordinates)
             if points.shape[0] == 0:
                 continue
 

@@ -7,12 +7,12 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from .company_metrics import _pickup_points
+from .company_metrics import _service_points
 from .geometry import hull_or_bbox_area, polygon_overlap_ratio
 
 
 def global_density(points: np.ndarray) -> float:
-    """Global request density across all companies in a case."""
+    """Global service-point density across all companies in a case."""
     area = hull_or_bbox_area(points)
     return float(points.shape[0] / area)
 
@@ -49,8 +49,8 @@ def morans_i_grid(
 ) -> Tuple[float, float]:
     """Compute Moran's I using grid cell counts and rook adjacency weights.
 
-    This approach bins pickup points into a grid and computes spatial
-    autocorrelation over cell counts (including zeros).
+    This approach bins service points (pickup+dropoff) into a grid and computes
+    spatial autocorrelation over cell counts (including zeros).
     """
     if points.shape[0] < 2:
         return float("nan"), float("nan")
@@ -135,9 +135,9 @@ def compute_case_metrics(
     all_points: List[np.ndarray] = []
 
     for company_id, company_data in case_data.get("companies", {}).items():
-        points = _pickup_points(company_data, coordinates)
+        points = _service_points(company_data, coordinates)
         company_points[company_id] = points
-        request_counts.append(int(points.shape[0]))
+        request_counts.append(len(company_data.get("clients", [])))
         if points.shape[0] > 0:
             all_points.append(points)
 
