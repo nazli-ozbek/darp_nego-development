@@ -89,7 +89,9 @@ def save_company_metrics_table(company_df: pd.DataFrame, out_dir: str) -> None:
         "case_id",
         "company_id",
         "request_density",
-        "mnnd",
+        "avg_pairwise_distance",
+        "min_pairwise_distance",
+        "max_pairwise_distance",
         "dbscan_clusters",
         "noise_ratio",
     ]
@@ -149,7 +151,12 @@ def save_company_distributions(company_df: pd.DataFrame, out_dir: str) -> None:
     if company_df.empty:
         return
 
-    metrics = ["request_density", "mnnd", "dbscan_clusters", "noise_ratio"]
+    metrics = [
+        "request_density",
+        "avg_pairwise_distance",
+        "min_pairwise_distance",
+        "max_pairwise_distance",
+    ]
     fig, axes = plt.subplots(2, 2, figsize=(10, 8))
     axes = axes.flatten()
     for ax, metric in zip(axes, metrics):
@@ -158,6 +165,39 @@ def save_company_distributions(company_df: pd.DataFrame, out_dir: str) -> None:
         ax.set_title(metric)
         ax.grid(True, alpha=0.3)
     _safe_save(fig, os.path.join(out_dir, "plots", "company_metric_distributions.png"))
+
+
+def save_all_metric_distributions(df: pd.DataFrame, out_path: str, exclude_cols: List[str]) -> None:
+    try:
+        import matplotlib.pyplot as plt
+    except Exception:
+        return
+
+    if df.empty:
+        return
+
+    numeric_cols = [
+        col for col in df.columns
+        if col not in exclude_cols and np.issubdtype(df[col].dtype, np.number)
+    ]
+    if not numeric_cols:
+        return
+
+    n_cols = 3
+    n_rows = int(np.ceil(len(numeric_cols) / n_cols))
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 3 * n_rows))
+    axes = np.atleast_1d(axes).flatten()
+
+    for ax, col in zip(axes, numeric_cols):
+        values = df[col].dropna()
+        ax.hist(values, bins=15, color="#457b9d", alpha=0.85)
+        ax.set_title(col, fontsize=9)
+        ax.grid(True, alpha=0.3)
+
+    for ax in axes[len(numeric_cols):]:
+        ax.axis("off")
+
+    _safe_save(fig, out_path)
 
 
 def save_feature_correlation(feature_df: pd.DataFrame, out_dir: str) -> None:
@@ -309,6 +349,8 @@ def save_dbscan_examples(data: Dict, out_dir: str) -> None:
 
             labels_info = dbscan_labels(points)
             labels = labels_info["labels"]
+            eps = labels_info.get("eps")
+            min_pts = labels_info.get("min_pts")
 
             fig, ax = plt.subplots(figsize=(5, 4))
             if labels.size == 0:
@@ -329,4 +371,22 @@ def save_dbscan_examples(data: Dict, out_dir: str) -> None:
             ax.set_title(f"DBSCAN {case_id} {company_id}")
             ax.set_xticks([])
             ax.set_yticks([])
+            info_lines = [
+                "Colored: clusters",
+                "Black: noise",
+                f"eps={eps:.3f}" if isinstance(eps, float) and np.isfinite(eps) else "eps=nan",
+                f"minPts={min_pts}",
+                f"n_points={points.shape[0]}",
+                f"unique_points={np.unique(points, axis=0).shape[0]}",
+            ]
+            ax.text(
+                0.98,
+                0.98,
+                "\n".join(info_lines),
+                transform=ax.transAxes,
+                ha="right",
+                va="top",
+                fontsize=8,
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8),
+            )
             _safe_save(fig, os.path.join(plots_dir, f"dbscan_{case_id}_{company_id}.png"))

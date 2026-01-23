@@ -126,7 +126,6 @@ def operational_overlap(company_points: Dict[str, np.ndarray]) -> float:
 def compute_case_metrics(
     case_id: str,
     case_data: Dict,
-    permutations: int = 99,
     seed: int = 7,
 ) -> Dict[str, float]:
     coordinates = case_data.get("coordinates", {})
@@ -148,14 +147,13 @@ def compute_case_metrics(
 
     gini = gini_coefficient(request_counts)
     global_d = global_density(stacked) if stacked.shape[0] > 0 else 0.0
-    moran_i, moran_p = morans_i_grid(stacked, permutations=permutations, seed=seed)
+    moran_i, _ = morans_i_grid(stacked, permutations=0, seed=seed)
     overlap = operational_overlap(company_points)
 
     return {
         "case_id": case_id,
         "global_density": global_d,
         "morans_i": moran_i,
-        "morans_p": moran_p,
         "gini_requests": gini,
         "avg_overlap": overlap,
     }

@@ -7,6 +7,7 @@ from typing import Dict, Iterable, List, Tuple
 import numpy as np
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
+from scipy.spatial.distance import pdist
 
 from .geometry import hull_or_bbox_area
 
@@ -34,14 +35,20 @@ def request_density(points: np.ndarray) -> float:
     return float(points.shape[0] / area)
 
 
-def mean_nearest_neighbor_distance(points: np.ndarray) -> float:
-    """Mean nearest-neighbor Euclidean distance among service points."""
+def pairwise_distance_stats(points: np.ndarray) -> Dict[str, float]:
+    """Return average/min/max pairwise Euclidean distances among service points."""
     if points.shape[0] < 2:
-        return float("nan")
-    nn = NearestNeighbors(n_neighbors=2)
-    nn.fit(points)
-    distances, _ = nn.kneighbors(points)
-    return float(np.mean(distances[:, 1]))
+        return {
+            "avg_pairwise_distance": float("nan"),
+            "min_pairwise_distance": float("nan"),
+            "max_pairwise_distance": float("nan"),
+        }
+    distances = pdist(points)
+    return {
+        "avg_pairwise_distance": float(np.mean(distances)),
+        "min_pairwise_distance": float(np.min(distances)),
+        "max_pairwise_distance": float(np.max(distances)),
+    }
 
 
 def _estimate_eps(points: np.ndarray, min_pts: int) -> float:
@@ -111,7 +118,7 @@ def compute_company_metrics(
     points = _service_points(company_data, coordinates)
     request_count = len(company_data.get("clients", []))
     density = request_density(points)
-    mnnd = mean_nearest_neighbor_distance(points)
+    distance_stats = pairwise_distance_stats(points)
     dbscan_stats = dbscan_indicators(points, min_pts=min_pts)
 
     return {
@@ -120,7 +127,9 @@ def compute_company_metrics(
         "request_count": int(request_count),
         "service_point_count": int(points.shape[0]),
         "request_density": density,
-        "mnnd": mnnd,
+        "avg_pairwise_distance": distance_stats["avg_pairwise_distance"],
+        "min_pairwise_distance": distance_stats["min_pairwise_distance"],
+        "max_pairwise_distance": distance_stats["max_pairwise_distance"],
         "dbscan_clusters": dbscan_stats["dbscan_clusters"],
         "avg_cluster_size": dbscan_stats["avg_cluster_size"],
         "noise_ratio": dbscan_stats["noise_ratio"],

@@ -23,6 +23,7 @@ from metrics.plots import (
     save_dbscan_examples,
     save_embedding_scatter,
     save_embedding_scatter_plain,
+    save_all_metric_distributions,
     save_feature_correlation,
     save_moran_grids,
 )
@@ -34,7 +35,6 @@ def _extract_cases(data: Dict) -> Dict:
 
 def compute_all_metrics(
     data: Dict,
-    permutations: int,
     seed: int,
 ) -> Dict[str, pd.DataFrame]:
     company_rows: List[Dict] = []
@@ -49,9 +49,7 @@ def compute_all_metrics(
                 compute_company_metrics(case_id, company_id, company_data, coordinates)
             )
 
-        case_rows.append(
-            compute_case_metrics(case_id, case_data, permutations=permutations, seed=seed)
-        )
+        case_rows.append(compute_case_metrics(case_id, case_data, seed=seed))
 
     company_df = pd.DataFrame(company_rows)
     case_df = pd.DataFrame(case_rows)
@@ -137,6 +135,17 @@ def generate_plots(
     save_case_distributions(case_df, dataset_dir)
     save_company_distributions(company_df, dataset_dir)
     save_feature_correlation(feature_df, dataset_dir)
+    save_all_metric_distributions(
+        company_df,
+        os.path.join(dataset_dir, "plots", "company_all_metrics_distributions.png"),
+        exclude_cols=["case_id", "company_id"],
+    )
+    if not feature_df.empty:
+        save_all_metric_distributions(
+            feature_df,
+            os.path.join(dataset_dir, "plots", "dataset_feature_distributions.png"),
+            exclude_cols=["case_id"],
+        )
 
     if "pca" in embeddings:
         save_embedding_scatter(
@@ -212,13 +221,12 @@ def main() -> None:
     parser.add_argument("--input", required=True, help="Path to company_cases.json")
     parser.add_argument("--out", required=True, help="Output directory for metrics CSVs")
     parser.add_argument("--case-id", default=None, help="Optional case id to process")
-    parser.add_argument("--permutations", type=int, default=99, help="Moran's I permutations")
     parser.add_argument("--seed", type=int, default=7, help="Random seed")
     args = parser.parse_args()
 
     np.random.seed(args.seed)
     data = load_company_cases(args.input, case_id=args.case_id)
-    results = compute_all_metrics(data, permutations=args.permutations, seed=args.seed)
+    results = compute_all_metrics(data, seed=args.seed)
     embeddings = write_outputs(
         args.out,
         results["case"],
