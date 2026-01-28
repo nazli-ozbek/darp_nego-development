@@ -9,6 +9,7 @@ import csv
 import json
 import os
 import glob
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
@@ -127,6 +128,11 @@ def _color_scale(values: List[float]) -> List[float]:
     scaled = (arr - vmin) / (vmax - vmin)
     scaled = np.where(np.isfinite(scaled), scaled, 0.5)
     return list(scaled)
+
+
+def _natural_key(text: str) -> List[object]:
+    parts = re.split(r"(\d+)", str(text))
+    return [int(part) if part.isdigit() else part.lower() for part in parts]
 
 
 def _plot_all_distributions(df: pd.DataFrame, exclude_cols: List[str], output_path: str) -> bool:
@@ -253,6 +259,7 @@ def _build_case_summary(records: List[Dict[str, Any]]) -> pd.DataFrame:
         numeric_summary = ok_group[available_numeric].mean().add_suffix("_mean")
 
     summary = pd.concat([counts, status, numeric_summary], axis=1).reset_index()
+    summary = summary.sort_values("case_name", key=lambda s: s.map(_natural_key)).reset_index(drop=True)
     return summary
 
 

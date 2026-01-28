@@ -15,7 +15,7 @@ import pandas as pd
 from compute_metrics import compute_all_metrics, generate_plots, write_outputs
 from metrics.dataset_metrics import build_feature_vectors, pca_embedding, umap_embedding
 from metrics.io import load_company_cases
-from metrics.plots import save_embedding_scatter_plain
+from metrics.plots import save_embedding_scatter, save_embedding_scatter_plain
 from solve_and_extract_metrics import solve_and_extract_metrics
 
 
@@ -120,6 +120,16 @@ def _write_combined_outputs(
             "pc1",
             "pc2",
         )
+        for color_col in ["gini_requests", "global_density", "solution_cost_mean", "solve_ok_rate"]:
+            if color_col in combined_features.columns:
+                save_embedding_scatter(
+                    pca_df,
+                    combined_features,
+                    os.path.join(plots_dir, f"pca_scatter_{color_col}.png"),
+                    "pc1",
+                    "pc2",
+                    color_col,
+                )
         if umap_df is not None:
             save_embedding_scatter_plain(
                 umap_df,
@@ -127,6 +137,16 @@ def _write_combined_outputs(
                 "umap1",
                 "umap2",
             )
+            for color_col in ["gini_requests", "global_density", "solution_cost_mean", "solve_ok_rate"]:
+                if color_col in combined_features.columns:
+                    save_embedding_scatter(
+                        umap_df,
+                        combined_features,
+                        os.path.join(plots_dir, f"umap_scatter_{color_col}.png"),
+                        "umap1",
+                        "umap2",
+                        color_col,
+                    )
 
     return embeddings
 
