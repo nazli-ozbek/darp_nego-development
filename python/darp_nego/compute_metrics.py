@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 from typing import Dict, List
 
 import numpy as np
@@ -33,6 +34,11 @@ def _extract_cases(data: Dict) -> Dict:
     return {k: v for k, v in data.items() if isinstance(v, dict) and "companies" in v}
 
 
+def _natural_key(text: str) -> List[object]:
+    parts = re.split(r"(\d+)", text)
+    return [int(part) if part.isdigit() else part.lower() for part in parts]
+
+
 def compute_all_metrics(
     data: Dict,
     seed: int,
@@ -41,7 +47,8 @@ def compute_all_metrics(
     case_rows: List[Dict] = []
 
     cases = _extract_cases(data)
-    for case_id, case_data in cases.items():
+    for case_id in sorted(cases.keys(), key=_natural_key):
+        case_data = cases[case_id]
         coordinates = case_data.get("coordinates", {})
         companies = case_data.get("companies", {})
         for company_id, company_data in companies.items():
@@ -221,11 +228,23 @@ def main() -> None:
     parser.add_argument("--input", required=True, help="Path to company_cases.json")
     parser.add_argument("--out", required=True, help="Output directory for metrics CSVs")
     parser.add_argument("--case-id", default=None, help="Optional case id to process")
+    parser.add_argument(
+        "--max-cases",
+        type=int,
+        default=None,
+        help="Process at most this many cases (deterministic natural order).",
+    )
     parser.add_argument("--seed", type=int, default=7, help="Random seed")
     args = parser.parse_args()
 
     np.random.seed(args.seed)
     data = load_company_cases(args.input, case_id=args.case_id)
+    if args.max_cases is not None:
+        if args.max_cases < 1:
+            raise ValueError("--max-cases must be >= 1")
+        case_keys = [k for k, v in data.items() if isinstance(v, dict) and "companies" in v]
+        case_keys = sorted(case_keys, key=_natural_key)[: args.max_cases]
+        data = {k: data[k] for k in case_keys}
     results = compute_all_metrics(data, seed=args.seed)
     embeddings = write_outputs(
         args.out,

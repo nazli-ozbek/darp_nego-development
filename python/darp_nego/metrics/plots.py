@@ -178,7 +178,7 @@ def save_all_metric_distributions(df: pd.DataFrame, out_path: str, exclude_cols:
 
     numeric_cols = [
         col for col in df.columns
-        if col not in exclude_cols and np.issubdtype(df[col].dtype, np.number)
+        if col not in exclude_cols and pd.api.types.is_numeric_dtype(df[col])
     ]
     if not numeric_cols:
         return

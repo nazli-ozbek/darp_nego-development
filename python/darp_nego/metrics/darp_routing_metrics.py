@@ -200,8 +200,8 @@ class DARPRoutingMetrics:
         max_route_time = max(route_times) if route_times else 0
         avg_route_time = sum(route_times) / len(route_times) if route_times else 0
         
-        # Get the client count
-        client_count = data.get("client_count", 0)
+        # Get the served client count
+        served_clients = data.get("served_clients", data.get("client_count", 0))
         
         # Get delay metrics
         pickup_delays = data.get("pickup_delays", 0)
@@ -216,7 +216,7 @@ class DARPRoutingMetrics:
         # Calculate client wait time (if needed)
         route_client_wait_times = [r.get("waiting_time", 0) for r in data.get("routes", [])]
         total_client_wait_time = sum(route_client_wait_times)
-        avg_client_wait_time = total_client_wait_time / client_count if client_count > 0 else 0
+        avg_client_wait_time = total_client_wait_time / served_clients if served_clients > 0 else 0
         
         # Vehicle utilization: used vehicles / total vehicles
         vehicle_utilization = vehicles_used / data.get("total_vehicles", 1) if data.get("total_vehicles", 0) > 0 else 0
@@ -348,7 +348,7 @@ class DARPRoutingMetrics:
             max_route_time=max_route_time,
             avg_route_time=avg_route_time,
             cost=cost,  # Include cost in metrics
-            clients_served=client_count,
+            clients_served=served_clients,
             avg_client_wait_time=avg_client_wait_time,
             pickup_delays=pickup_delays,
             delivery_delays=delivery_delays,
