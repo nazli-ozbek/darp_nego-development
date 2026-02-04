@@ -75,6 +75,13 @@ def write_outputs(
     feature_df: pd.DataFrame,
     seed: int,
 ) -> Dict[str, pd.DataFrame]:
+    def _reorder(df: pd.DataFrame, preferred: List[str]) -> pd.DataFrame:
+        if df.empty:
+            return df
+        ordered = [c for c in preferred if c in df.columns]
+        remaining = [c for c in df.columns if c not in ordered]
+        return df[ordered + remaining]
+
     dataset_dir = os.path.join(out_dir, "dataset")
     cases_dir = os.path.join(out_dir, "cases")
     os.makedirs(dataset_dir, exist_ok=True)
@@ -84,9 +91,50 @@ def write_outputs(
 
     case_path = os.path.join(dataset_dir, "case_metrics.csv")
     company_path = os.path.join(dataset_dir, "company_metrics.csv")
+    case_df = _reorder(
+        case_df,
+        ["case_id", "global_density", "morans_i", "gini_requests", "avg_overlap"],
+    )
+    company_df = _reorder(
+        company_df,
+        [
+            "case_id",
+            "company_id",
+            "request_count",
+            "service_point_count",
+            "request_density",
+            "avg_pairwise_distance",
+            "min_pairwise_distance",
+            "max_pairwise_distance",
+            "dbscan_clusters",
+            "avg_cluster_size",
+            "noise_ratio",
+            "dbscan_eps",
+        ],
+    )
     case_df.to_csv(case_path, index=False)
     company_df.to_csv(company_path, index=False)
     if not feature_df.empty:
+        feature_df = _reorder(
+            feature_df,
+            [
+                "case_id",
+                "global_density",
+                "avg_company_density",
+                "std_company_density",
+                "mean_company_avg_distance",
+                "std_company_avg_distance",
+                "mean_company_min_distance",
+                "std_company_min_distance",
+                "mean_company_max_distance",
+                "std_company_max_distance",
+                "morans_i",
+                "gini_requests",
+                "avg_company_dbscan_clusters",
+                "avg_company_noise_ratio",
+                "avg_overlap",
+            ],
+        )
         feature_df.to_csv(os.path.join(dataset_dir, "feature_vectors.csv"), index=False)
 
     embeddings = {}

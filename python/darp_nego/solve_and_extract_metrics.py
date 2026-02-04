@@ -251,11 +251,21 @@ def solve_and_extract_metrics(
     base_name = os.path.splitext(os.path.basename(input_path))[0]
     output_path = os.path.join(metrics_dir, f"{base_name}_darp_metrics_{timestamp}.csv")
 
-    fieldnames: List[str] = []
+    preferred = [
+        "case_name",
+        "company_name",
+        "num_vehicles",
+        "num_clients",
+        "solve_status",
+        "solve_time_sec",
+        "solution_cost",
+    ]
+    field_set = set(preferred)
     for row in results:
-        for key in row.keys():
-            if key not in fieldnames:
-                fieldnames.append(key)
+        field_set.update(row.keys())
+    remaining = [k for k in field_set if k not in preferred]
+    remaining.sort()
+    fieldnames = preferred + remaining
 
     with open(output_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)

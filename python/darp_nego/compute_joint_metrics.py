@@ -71,7 +71,22 @@ def _aggregate_darp_metrics(records: pd.DataFrame) -> pd.DataFrame:
         numeric_summary.columns = [f"{col}_{stat}" for col, stat in numeric_summary.columns]
 
     combined = pd.concat([counts, status, numeric_summary], axis=1).reset_index()
-    return combined
+    preferred = [
+        "case_id",
+        "company_count",
+        "solve_ok_rate",
+        "solve_infeasible_rate",
+    ]
+    for col in numeric_cols:
+        mean_col = f"{col}_mean"
+        std_col = f"{col}_std"
+        if mean_col in combined.columns:
+            preferred.append(mean_col)
+        if std_col in combined.columns:
+            preferred.append(std_col)
+    ordered = [c for c in preferred if c in combined.columns]
+    remaining = [c for c in combined.columns if c not in ordered]
+    return combined[ordered + remaining]
 
 
 def _build_combined_features(
@@ -81,8 +96,12 @@ def _build_combined_features(
 ) -> pd.DataFrame:
     scenario_features = build_feature_vectors(case_df, company_df)
     combined = scenario_features.merge(darp_case_df, on="case_id", how="left")
-    numeric_cols = combined.select_dtypes(include=[np.number]).columns.tolist()
-    return combined[["case_id"] + numeric_cols]
+    base_cols = [c for c in scenario_features.columns if c != "case_id"]
+    darp_cols = [c for c in darp_case_df.columns if c != "case_id"]
+    preferred = ["case_id"] + base_cols + darp_cols
+    ordered = [c for c in preferred if c in combined.columns]
+    remaining = [c for c in combined.columns if c not in ordered]
+    return combined[ordered + remaining]
 
 
 def _write_combined_outputs(
@@ -188,7 +207,7 @@ def main() -> None:
     parser.add_argument(
         "--solve-repeats",
         type=int,
-        default=10,
+        default=1,
         help="Number of solver runs per company to average metrics.",
     )
     parser.add_argument("--seed", type=int, default=7, help="Random seed")
