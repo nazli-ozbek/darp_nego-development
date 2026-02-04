@@ -105,6 +105,16 @@ def _write_combined_outputs(
 
     embeddings: Dict[str, Optional[pd.DataFrame]] = {"pca": None, "umap": None}
     if not combined_features.empty:
+        numeric_cols = combined_features.select_dtypes(include="number")
+        n_samples = len(combined_features)
+        n_features = numeric_cols.shape[1]
+        if n_samples < 2 or n_features < 2:
+            print(
+                f"Skipping combined PCA/UMAP: need >=2 samples and >=2 numeric features "
+                f"(got samples={n_samples}, features={n_features})."
+            )
+            return embeddings
+
         pca_df, _ = pca_embedding(combined_features, seed=seed)
         pca_df.to_csv(os.path.join(combined_dir, "pca_2d.csv"), index=False)
         embeddings["pca"] = pca_df
