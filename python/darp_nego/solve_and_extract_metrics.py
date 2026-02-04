@@ -11,7 +11,7 @@ import os
 import time
 import re
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Iterable
 
 import numpy as np
 
@@ -128,12 +128,35 @@ def _compute_basic_metrics(route_summary: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _mean(values: Iterable[float]) -> float:
+    values = list(values)
+    return float(np.mean(values)) if values else 0.0
+
+
+def _average_metrics(metrics_list: List[Dict[str, Any]]) -> Dict[str, Any]:
+    if not metrics_list:
+        return {}
+    keys: set[str] = set()
+    for metrics in metrics_list:
+        keys.update(metrics.keys())
+    averaged: Dict[str, Any] = {}
+    for key in keys:
+        vals = [
+            v for v in (m.get(key) for m in metrics_list)
+            if isinstance(v, (int, float, np.floating))
+        ]
+        if vals:
+            averaged[key] = _mean(vals)
+    return averaged
+
+
 def solve_and_extract_metrics(
     input_path: str,
     output_dir: str,
     case_id: str | None = None,
     case_ids: List[str] | None = None,
 ) -> str:
+    solve_repeats = 10
     data = _load_company_cases(input_path)
     output_dir = os.path.normpath(output_dir)
     if os.path.basename(output_dir) == "darp_metrics":
@@ -154,22 +177,62 @@ def solve_and_extract_metrics(
         companies = case_data.get("companies", {})
 
         for company_name, company_data in companies.items():
-            problem = _build_problem(company_name, company_data, time_matrix, coordinates)
+            print(f"[{case_name} | {company_name}] starting {solve_repeats} solves...")
+            solve_times: List[float] = []
+            costs: List[float] = []
+            metrics_list: List[Dict[str, Any]] = []
+            ok_runs = 0
+            infeasible_runs = 0
+            error_runs = 0
 
-            start = time.perf_counter()
-            try:
-                solution_cost = problem.solve_problem()
-                solve_status = "ok" if solution_cost is not None else "infeasible"
-            except Exception as exc:
-                solution_cost = None
-                solve_status = f"error: {exc.__class__.__name__}"
-            solve_time_sec = time.perf_counter() - start
+            for run_idx in range(1, solve_repeats + 1):
+                print(f"[{case_name} | {company_name}] run {run_idx}/{solve_repeats}...")
+                problem = _build_problem(company_name, company_data, time_matrix, coordinates)
 
-            route_summary: Dict[str, Any] = {}
-            if solve_status == "ok":
-                route_summary = logger._extract_route_data(company_name, problem)
+                start = time.perf_counter()
+                had_error = False
+                try:
+                    solution_cost = problem.solve_problem()
+                    solve_ok = solution_cost is not None
+                except Exception:
+                    solution_cost = None
+                    solve_ok = False
+                    had_error = True
+                    error_runs += 1
+                solve_time_sec = time.perf_counter() - start
+                solve_times.append(solve_time_sec)
 
-            metrics = _compute_basic_metrics(route_summary) if route_summary else {}
+                if solve_ok:
+                    ok_runs += 1
+                    costs.append(float(solution_cost))
+                    route_summary = logger._extract_route_data(company_name, problem)
+                    metrics_list.append(_compute_basic_metrics(route_summary))
+                    print(
+                        f"[{case_name} | {company_name}] run {run_idx}/{solve_repeats} ok "
+                        f"(cost={solution_cost}, time={solve_time_sec:.3f}s)"
+                    )
+                else:
+                    if solution_cost is None and not had_error:
+                        infeasible_runs += 1
+                        print(
+                            f"[{case_name} | {company_name}] run {run_idx}/{solve_repeats} infeasible "
+                            f"(time={solve_time_sec:.3f}s)"
+                        )
+                    if had_error:
+                        print(
+                            f"[{case_name} | {company_name}] run {run_idx}/{solve_repeats} error "
+                            f"(time={solve_time_sec:.3f}s)"
+                        )
+
+            metrics = _average_metrics(metrics_list)
+            solution_cost = _mean(costs) if costs else ""
+            solve_time_avg = round(_mean(solve_times), 4) if solve_times else ""
+            solve_status = "ok" if ok_runs > 0 else ("infeasible" if error_runs == 0 else "error")
+            print(
+                f"[{case_name} | {company_name}] done: status={solve_status}, "
+                f"ok={ok_runs}, infeasible={infeasible_runs}, errors={error_runs}, "
+                f"avg_time={solve_time_avg}s"
+            )
 
             results.append({
                 "case_name": case_name,
@@ -177,8 +240,8 @@ def solve_and_extract_metrics(
                 "num_vehicles": len(company_data.get("vehicles", [])),
                 "num_clients": len(company_data.get("clients", [])),
                 "solve_status": solve_status,
-                "solve_time_sec": round(solve_time_sec, 4),
-                "solution_cost": solution_cost if solution_cost is not None else "",
+                "solve_time_sec": solve_time_avg,
+                "solution_cost": solution_cost,
                 **metrics,
             })
 
