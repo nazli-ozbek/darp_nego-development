@@ -91,30 +91,39 @@ def write_outputs(
 
     embeddings = {}
     if not feature_df.empty:
-        pca_df, _ = pca_embedding(feature_df, seed=seed)
-        pca_path = os.path.join(dataset_dir, "pca_2d.csv")
-        pca_df.to_csv(pca_path, index=False)
-        embeddings["pca"] = pca_df
+        numeric_cols = feature_df.select_dtypes(include="number")
+        n_samples = len(feature_df)
+        n_features = numeric_cols.shape[1]
+        if n_samples < 2 or n_features < 2:
+            print(
+                f"Skipping PCA/UMAP: need >=2 samples and >=2 numeric features "
+                f"(got samples={n_samples}, features={n_features})."
+            )
+        else:
+            pca_df, _ = pca_embedding(feature_df, seed=seed)
+            pca_path = os.path.join(dataset_dir, "pca_2d.csv")
+            pca_df.to_csv(pca_path, index=False)
+            embeddings["pca"] = pca_df
 
-        umap_df = umap_embedding(feature_df, seed=seed)
-        if umap_df is not None:
-            umap_path = os.path.join(dataset_dir, "umap_2d.csv")
-            umap_df.to_csv(umap_path, index=False)
-            embeddings["umap"] = umap_df
+            umap_df = umap_embedding(feature_df, seed=seed)
+            if umap_df is not None:
+                umap_path = os.path.join(dataset_dir, "umap_2d.csv")
+                umap_df.to_csv(umap_path, index=False)
+                embeddings["umap"] = umap_df
 
-        try:
-            import matplotlib.pyplot as plt
+            try:
+                import matplotlib.pyplot as plt
 
-            plt.figure(figsize=(6, 5))
-            plt.scatter(pca_df["pc1"], pca_df["pc2"], s=30, alpha=0.8, color="#2a9d8f")
-            plt.xlabel("PC1")
-            plt.ylabel("PC2")
-            plt.title("Case Metrics PCA")
-            plt.tight_layout()
-            plt.savefig(os.path.join(plots_dir, "pca_scatter.png"), dpi=200)
-            plt.close()
-        except Exception:
-            pass
+                plt.figure(figsize=(6, 5))
+                plt.scatter(pca_df["pc1"], pca_df["pc2"], s=30, alpha=0.8, color="#2a9d8f")
+                plt.xlabel("PC1")
+                plt.ylabel("PC2")
+                plt.title("Case Metrics PCA")
+                plt.tight_layout()
+                plt.savefig(os.path.join(plots_dir, "pca_scatter.png"), dpi=200)
+                plt.close()
+            except Exception:
+                pass
 
     if not case_df.empty:
         for case_id in case_df["case_id"].unique():

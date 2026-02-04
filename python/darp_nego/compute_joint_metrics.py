@@ -175,6 +175,12 @@ def main() -> None:
         default=None,
         help="Optional path to *_darp_metrics_*.json to skip solving",
     )
+    parser.add_argument(
+        "--solve-repeats",
+        type=int,
+        default=10,
+        help="Number of solver runs per company to average metrics.",
+    )
     parser.add_argument("--seed", type=int, default=7, help="Random seed")
     args = parser.parse_args()
 
@@ -224,6 +230,7 @@ def main() -> None:
             args.out,
             case_id=args.case_id,
             case_ids=case_ids_for_darp,
+            solve_repeats=args.solve_repeats,
         )
 
     darp_df = _load_darp_metrics(darp_metrics_path)

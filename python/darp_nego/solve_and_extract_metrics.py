@@ -155,8 +155,10 @@ def solve_and_extract_metrics(
     output_dir: str,
     case_id: str | None = None,
     case_ids: List[str] | None = None,
+    solve_repeats: int = 10,
 ) -> str:
-    solve_repeats = 10
+    if solve_repeats < 1:
+        raise ValueError("solve_repeats must be >= 1")
     data = _load_company_cases(input_path)
     output_dir = os.path.normpath(output_dir)
     if os.path.basename(output_dir) == "darp_metrics":
@@ -273,6 +275,12 @@ def main() -> None:
     parser.add_argument("--case-id", default=None, help="Optional case id to process")
     parser.add_argument("--case-ids", default=None, help="Comma-separated list of case ids to process")
     parser.add_argument(
+        "--solve-repeats",
+        type=int,
+        default=10,
+        help="Number of solver runs per company to average metrics.",
+    )
+    parser.add_argument(
         "--max-cases",
         type=int,
         default=None,
@@ -290,7 +298,13 @@ def main() -> None:
             data = _load_company_cases(args.input)
             case_keys = [k for k, v in data.items() if isinstance(v, dict) and "companies" in v]
             case_ids = sorted(case_keys, key=_natural_key)[: args.max_cases]
-    output_path = solve_and_extract_metrics(args.input, args.out, case_id=args.case_id, case_ids=case_ids)
+    output_path = solve_and_extract_metrics(
+        args.input,
+        args.out,
+        case_id=args.case_id,
+        case_ids=case_ids,
+        solve_repeats=args.solve_repeats,
+    )
     print(f"Metrics written to: {output_path}")
 
 
