@@ -71,9 +71,6 @@ Scenario size constraints:
 - Per company clients: between {config.clients_per_company[0]} and {config.clients_per_company[1]}
 - Per company vehicles: between {config.vehicles_per_company[0]} and {config.vehicles_per_company[1]}
 
-Diversity requirement:
-- Ensure diversity across different cases (case-to-case variation). Vary spatial distribution, time windows, volumes, and depot locations between cases while keeping each case internally coherent and feasible.
-
 Location ID ranges (global for the case):
 - Vehicle depots: {vehicle_loc_range}
 - Hospitals (delivery nodes): {hospital_loc_range}

@@ -74,8 +74,13 @@ def umap_embedding(
         return None
 
     data = features.drop(columns=["case_id"]).fillna(0.0).to_numpy(dtype=float)
+    if data.shape[0] < 4:
+        # Too few samples for stable UMAP spectral init
+        return None
     scaler = StandardScaler()
     scaled = scaler.fit_transform(data)
-    reducer = umap.UMAP(n_components=2, random_state=seed)
+    n_samples = scaled.shape[0]
+    n_neighbors = max(2, min(15, n_samples - 1))
+    reducer = umap.UMAP(n_components=2, random_state=seed, n_neighbors=n_neighbors, init="random")
     coords = reducer.fit_transform(scaled)
     return pd.DataFrame({"case_id": features["case_id"], "umap1": coords[:, 0], "umap2": coords[:, 1]})
