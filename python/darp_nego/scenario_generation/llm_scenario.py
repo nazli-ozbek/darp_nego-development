@@ -36,7 +36,7 @@ class LLMScenarioConfig:
     speed_units_per_minute: Tuple[float, float] = (0.4, 0.7)
 
 
-def build_prompt(config: LLMScenarioConfig, include_matrix: bool = False) -> str:
+def build_prompt(config: LLMScenarioConfig) -> str:
     total_clients = config.num_companies * random.randint(*config.clients_per_company)
     total_vehicles = config.num_companies * random.randint(*config.vehicles_per_company)
     num_hospitals = max(2, config.num_hospitals)
@@ -48,13 +48,6 @@ def build_prompt(config: LLMScenarioConfig, include_matrix: bool = False) -> str
     client_loc_range = (
         f"{total_vehicles + num_hospitals}..{total_vehicles + num_hospitals + total_clients - 1}"
     )
-
-    schema_extras = ""
-    if include_matrix:
-        schema_extras = (
-            ',\n  "coordinates": { "0": [x,y], "1": [x,y], ... },'
-            '\n  "time_matrix": [[...], [...], ...]'
-        )
 
     prompt = f"""
 You are generating a multi-company Dial-a-Ride (DARP) scenario for ambulance transportation.
@@ -98,7 +91,7 @@ Output JSON schema:
   "companies": {{
     "company_0": {{"vehicles": [{{...}}], "clients": [{{...}}]}},
     ...
-  }}{schema_extras}
+  }}
 }}
 
 Vehicle object:
@@ -417,9 +410,8 @@ def generate_case_with_llm(
     api_key: str,
     config: LLMScenarioConfig,
     model_name: str = "gemini-2.0-flash",
-    include_matrix: bool = False,
 ) -> Dict:
-    prompt = build_prompt(config, include_matrix=include_matrix)
+    prompt = build_prompt(config)
     response_text = call_gemini(prompt, api_key=api_key, model_name=model_name)
     raw = extract_json(response_text)
 
@@ -433,13 +425,7 @@ def generate_case_with_llm(
             company_data, config.time_start_min, config.time_end_min
         )
 
-    out = {"companies": normalized}
-    if include_matrix:
-        if "coordinates" in raw:
-            out["coordinates"] = raw["coordinates"]
-        if "time_matrix" in raw:
-            out["time_matrix"] = raw["time_matrix"]
-    return out
+    return {"companies": normalized}
 
 def normalize_company_keys(companies: Dict[str, Dict], num_companies: int) -> Dict[str, Dict]:
     ordered = [companies[k] for k in sorted(companies.keys())]
@@ -450,29 +436,6 @@ def normalize_company_keys(companies: Dict[str, Dict], num_companies: int) -> Di
         else:
             normalized[f"company_{i}"] = {"vehicles": [], "clients": []}
     return normalized
-
-
-def _coerce_coordinates(raw_coords: Dict) -> Dict[int, List[float]]:
-    coords = {}
-    for k, v in raw_coords.items():
-        try:
-            key = int(k)
-        except Exception:
-            continue
-        if isinstance(v, (list, tuple)) and len(v) == 2:
-            coords[key] = [float(v[0]), float(v[1])]
-    return coords
-
-
-def _validate_time_matrix(matrix: List[List[int]], size: int) -> bool:
-    if not isinstance(matrix, list) or len(matrix) != size:
-        return False
-    for row in matrix:
-        if not isinstance(row, list) or len(row) != size:
-            return False
-        if any(not isinstance(x, (int, float)) for x in row):
-            return False
-    return True
 
 
 def postprocess_case(raw_case: Dict, config: LLMScenarioConfig) -> Dict:
@@ -487,17 +450,9 @@ def postprocess_case(raw_case: Dict, config: LLMScenarioConfig) -> Dict:
 
     total_locations = total_vehicles + num_hospitals + total_clients
 
-    if "coordinates" in raw_case and "time_matrix" in raw_case:
-        coordinates = _coerce_coordinates(raw_case["coordinates"])
-        time_matrix = raw_case["time_matrix"]
-        if len(coordinates) != total_locations or not _validate_time_matrix(time_matrix, total_locations):
-            coordinates = generate_coordinates(total_locations, config.coordinate_range)
-            speed = random.uniform(*config.speed_units_per_minute)
-            time_matrix = generate_time_matrix_from_coords(coordinates, speed)
-    else:
-        coordinates = generate_coordinates(total_locations, config.coordinate_range)
-        speed = random.uniform(*config.speed_units_per_minute)
-        time_matrix = generate_time_matrix_from_coords(coordinates, speed)
+    coordinates = generate_coordinates(total_locations, config.coordinate_range)
+    speed = random.uniform(*config.speed_units_per_minute)
+    time_matrix = generate_time_matrix_from_coords(coordinates, speed)
 
     # Assign unique client pickup locations globally
     client_loc_start = total_vehicles + num_hospitals

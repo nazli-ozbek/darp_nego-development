@@ -22,7 +22,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--vehicles-min", type=int, default=4, help="Min vehicles per company.")
     parser.add_argument("--vehicles-max", type=int, default=5, help="Max vehicles per company.")
     parser.add_argument("--num-hospitals", type=int, default=3, help="Number of hospital nodes.")
-    parser.add_argument("--llm-matrix", action="store_true", help="Ask LLM to generate coordinates + time_matrix.")
     parser.add_argument("--output-dir", default="data", help="Output base directory.")
     return parser.parse_args()
 
@@ -45,7 +44,6 @@ def main() -> None:
             api_key=args.api_key,
             config=config,
             model_name=args.model,
-            include_matrix=args.llm_matrix,
         )
         case_data = postprocess_case(raw_case, config)
         cases_data[f"case_{case_index}"] = case_data
