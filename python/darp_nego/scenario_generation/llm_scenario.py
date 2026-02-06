@@ -34,6 +34,7 @@ class LLMScenarioConfig:
     time_end_min: int = DEFAULT_TIME_END_MIN
     coordinate_range: Tuple[int, int] = (-10, 10)
     speed_units_per_minute: Tuple[float, float] = (0.4, 0.7)
+    diversity_regime: str = ""
 
 
 def build_prompt(config: LLMScenarioConfig) -> str:
@@ -49,12 +50,61 @@ def build_prompt(config: LLMScenarioConfig) -> str:
         f"{total_vehicles + num_hospitals}..{total_vehicles + num_hospitals + total_clients - 1}"
     )
 
+    regime_key = (config.diversity_regime or "").strip().upper()
+    regime_map = {
+        "A": (
+            "Dense & Overlapping (HIGH overlap between companies): "
+            "companies serve similar pickup areas, balanced demand across companies, "
+            "many pickups concentrated into a few hotspots. Reflect this via aligned time windows, "
+            "shared hospitals, and overlapping pickup/drop patterns that enable swaps."
+        ),
+        "B": (
+            "Sparse & Separated (LOW overlap): "
+            "companies serve distinct pickup regions, pickups spread out with low clustering, "
+            "balanced demand. Reflect this via staggered time windows, more distinct hospital usage, "
+            "and fewer swap candidates."
+        ),
+        "C": (
+            "Unbalanced Demand (HIGH inequality): "
+            "one company has much higher demand than others. "
+            "Even if counts are later clamped, encode imbalance via tighter time windows, "
+            "higher volumes, and denser overlapping time windows for the heavy-demand company."
+        ),
+        "D": (
+            "Hotspot Clustering: "
+            "for at least one company, create 2+ distinct pickup hotspots (two clusters). "
+            "Keep overlap medium. Reflect this via grouped pickup IDs, shared hospitals within clusters, "
+            "and clustered time windows."
+        ),
+        "E": (
+            "Geographic Outliers: "
+            "most pickups in a main region, but a small fraction are outliers. "
+            "Reflect this via a few clients with distinct time windows or hospital choices, "
+            "and pickup IDs placed in a small separate band."
+        ),
+        "F": (
+            "Tight Time Windows Stress: "
+            "many clients have tight time windows (narrow intervals), still keeping pickup < dropoff "
+            "and times within 0..720."
+        ),
+    }
+    regime_text = regime_map.get(regime_key, "Balanced default: moderate overlap and moderate time window tightness.")
+
     prompt = f"""
 You are generating a multi-company Dial-a-Ride (DARP) scenario for ambulance transportation.
+
+The model MUST output valid JSON only.
+Output must contain ONLY the "companies" object (no coordinates/time_matrix).
+Use integer IDs for start_location/end_location.
+Client fields: start_location, end_location, time_window [earliest, latest], volume (use early_pickup/late_pickup and early_drop_off/late_drop_off in JSON).
+Vehicle fields: start_location, end_location, capacity (use max_volume in JSON).
+Keep times in 0..720.
 
 Output must be valid JSON only. Do not wrap in markdown.
 
 Time is measured in minutes from 08:00 to 20:00. Use the range {config.time_start_min}..{config.time_end_min}.
+
+
 
 Hard constraints (from the thesis formulation):
 - Each request r has pickup location p_r, delivery location d_r, pickup time window [e_p_r, l_p_r], delivery time window [e_d_r, l_d_r], and volume q_r.
@@ -70,6 +120,23 @@ Scenario size constraints:
 - Companies: {config.num_companies}
 - Per company clients: between {config.clients_per_company[0]} and {config.clients_per_company[1]}
 - Per company vehicles: between {config.vehicles_per_company[0]} and {config.vehicles_per_company[1]}
+
+MANDATORY NEGOTIATION STRUCTURE (IMPORTANT):
+
+Ensure that for at least ONE PAIR of companies (A, B), there exist at least TWO clients such that:
+- Client c_A belongs to company A, client c_B belongs to company B.
+- Swapping c_A and c_B between companies is FEASIBLE for both companies.
+- After the swap, each company can serve all its assigned clients within time windows and capacity limits.
+- The swap is beneficial in terms of routing effort:
+  * c_A’s pickup location is closer to company B’s vehicle depots than to company A’s depots.
+  * c_B’s pickup location is closer to company A’s vehicle depots than to company B’s depots.
+- c_A and c_B have overlapping pickup time windows and similar volumes.
+
+Diversity Regime:
+- Selected regime: {regime_key or "NONE"}
+- Instructions: {regime_text}
+- Because coordinates are generated later, express diversity primarily via time window patterns, per-company demand patterns, hospital usage patterns, and pickup/drop pairing patterns that enable swaps.
+- Use pickup ID groupings (bands or clusters) to indicate hotspots, separation, or outliers, even though coordinates are randomized later.
 
 Location ID ranges (global for the case):
 - Vehicle depots: {vehicle_loc_range}

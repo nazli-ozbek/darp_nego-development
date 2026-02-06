@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+import random
 from datetime import datetime
 
 SCENARIO_DIR = os.path.dirname(__file__)
@@ -23,6 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--vehicles-max", type=int, default=5, help="Max vehicles per company.")
     parser.add_argument("--num-hospitals", type=int, default=3, help="Number of hospital nodes.")
     parser.add_argument("--output-dir", default="data", help="Output base directory.")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for regime selection.")
     return parser.parse_args()
 
 
@@ -38,8 +40,13 @@ def main() -> None:
         num_hospitals=args.num_hospitals,
     )
 
+    regimes = ["A", "B", "C", "D", "E", "F"]
+    regime_rng = random.Random(args.seed)
+
     cases_data = {}
     for case_index in range(1, args.num_cases + 1):
+        regime = regime_rng.choice(regimes)
+        config.diversity_regime = regime
         raw_case = generate_case_with_llm(
             api_key=args.api_key,
             config=config,
