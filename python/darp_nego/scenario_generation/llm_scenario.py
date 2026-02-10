@@ -3,19 +3,11 @@ import math
 import os
 import random
 import re
+import inspect
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
-GENAI_BACKEND = None
-try:  # New SDK
-    import google.genai as genai  # type: ignore
-    GENAI_BACKEND = "google.genai"
-except Exception:  # pragma: no cover - optional dependency
-    try:  # Legacy SDK (deprecated)
-        import google.generativeai as genai  # type: ignore
-        GENAI_BACKEND = "google.generativeai"
-    except Exception:
-        genai = None
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 from darp_nego.darp.basic_darp import BasicDARPClient, BasicDARPProblem, BasicDARPVehicle
 
@@ -174,35 +166,91 @@ Client object:
     return prompt
 
 
-def call_gemini(prompt: str, api_key: str, model_name: str = "gemini-2.0-flash", temperature: float = 0.4) -> str:
-    if genai is None:
+def _init_dspy_lm(api_key: str, model_name: str, temperature: float):
+    try:
+        import dspy  # type: ignore
+    except Exception as exc:  # pragma: no cover - optional dependency
         raise RuntimeError(
-            "Neither google-genai nor google-generativeai is installed. "
-            "Install google-genai (preferred) or google-generativeai."
-        )
+            "DSPy is not installed. Install dspy to use the OpenRouter backend."
+        ) from exc
 
-    if GENAI_BACKEND == "google.genai":
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model=model_name,
-            contents=prompt,
-            config={
-                "temperature": temperature,
-                "response_mime_type": "application/json",
-            },
-        )
-        return getattr(response, "text", "") or ""
+    lm_cls = None
+    if hasattr(dspy, "LM"):
+        lm_cls = dspy.LM
+    elif hasattr(dspy, "OpenAI"):
+        lm_cls = dspy.OpenAI
+    else:
+        raise RuntimeError("Unsupported DSPy version: missing LM/OpenAI class.")
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(model_name)
-    response = model.generate_content(
-        prompt,
-        generation_config={
-            "temperature": temperature,
-            "response_mime_type": "application/json",
-        },
-    )
-    return response.text or ""
+    sig = inspect.signature(lm_cls)
+    kwargs = {}
+    normalized_model = model_name.strip()
+    if normalized_model.startswith("openrouter/"):
+        pass
+    elif normalized_model.startswith("google/") or normalized_model.startswith("anthropic/") or normalized_model.startswith("openai/"):
+        normalized_model = f"openrouter/{normalized_model}"
+    else:
+        normalized_model = f"openrouter/{normalized_model}"
+
+    if "model" in sig.parameters:
+        kwargs["model"] = normalized_model
+    elif "model_name" in sig.parameters:
+        kwargs["model_name"] = normalized_model
+
+    # LM accepts **kwargs; always pass these so LiteLLM receives them.
+    kwargs.setdefault("api_key", api_key)
+    kwargs.setdefault("api_base", OPENROUTER_BASE_URL)
+
+    if "temperature" in sig.parameters:
+        kwargs["temperature"] = temperature
+
+    # Optional OpenRouter headers (recommended)
+    extra_headers = {}
+    referer = os.getenv("OPENROUTER_REFERER") or os.getenv("OPENROUTER_HTTP_REFERER")
+    title = os.getenv("OPENROUTER_TITLE")
+    if referer:
+        extra_headers["HTTP-Referer"] = referer
+    if title:
+        extra_headers["X-Title"] = title
+
+    if extra_headers:
+        if "extra_headers" in sig.parameters:
+            kwargs["extra_headers"] = extra_headers
+        elif "headers" in sig.parameters:
+            kwargs["headers"] = extra_headers
+
+    return lm_cls(**kwargs)
+
+
+def _coerce_lm_text(response) -> str:
+    if isinstance(response, (list, tuple)):
+        return str(response[0]) if response else ""
+    if isinstance(response, dict):
+        if "text" in response:
+            return str(response["text"] or "")
+        if "output" in response:
+            return str(response["output"] or "")
+        choices = response.get("choices")
+        if choices and isinstance(choices, list):
+            first = choices[0]
+            if isinstance(first, dict):
+                if "text" in first:
+                    return str(first["text"] or "")
+                message = first.get("message") or {}
+                if isinstance(message, dict) and "content" in message:
+                    return str(message["content"] or "")
+    return str(response or "")
+
+
+def call_openrouter_dspy(
+    prompt: str,
+    api_key: str,
+    model_name: str = "openrouter/google/gemini-3-flash-preview",
+    temperature: float = 0.4,
+) -> str:
+    lm = _init_dspy_lm(api_key=api_key, model_name=model_name, temperature=temperature)
+    response = lm(prompt)
+    return _coerce_lm_text(response)
 
 
 def extract_json(text: str) -> Dict:
@@ -476,10 +524,10 @@ def relax_time_windows(company: Dict, time_start: int, time_end: int) -> None:
 def generate_case_with_llm(
     api_key: str,
     config: LLMScenarioConfig,
-    model_name: str = "gemini-2.0-flash",
+    model_name: str = "openrouter/google/gemini-3-flash-preview",
 ) -> Dict:
     prompt = build_prompt(config)
-    response_text = call_gemini(prompt, api_key=api_key, model_name=model_name)
+    response_text = call_openrouter_dspy(prompt, api_key=api_key, model_name=model_name)
     raw = extract_json(response_text)
 
     companies = raw.get("companies", {})

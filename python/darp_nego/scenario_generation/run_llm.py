@@ -13,9 +13,17 @@ from llm_scenario import LLMScenarioConfig, generate_case_with_llm, postprocess_
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate DARP scenarios using Gemini LLM.")
-    parser.add_argument("--api-key", default=os.getenv("GEMINI_API_KEY"), help="Gemini API key (or set GEMINI_API_KEY).")
-    parser.add_argument("--model", default="gemini-2.5-flash", help="Gemini model name.")
+    parser = argparse.ArgumentParser(description="Generate DARP scenarios using OpenRouter via DSPy.")
+    parser.add_argument(
+        "--api-key",
+        default=os.getenv("OPENROUTER_API_KEY"),
+        help="OpenRouter API key (or set OPENROUTER_API_KEY).",
+    )
+    parser.add_argument(
+        "--model",
+        default="openrouter/google/gemini-3-flash-preview",
+        help="OpenRouter model name (passed through to OpenRouter).",
+    )
     parser.add_argument("--num-cases", type=int, default=5, help="Number of cases to generate.")
     parser.add_argument("--num-companies", type=int, default=3, help="Companies per case.")
     parser.add_argument("--clients-min", type=int, default=20, help="Min clients per company.")
@@ -32,7 +40,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     if not args.api_key:
-        raise SystemExit("Missing API key. Pass --api-key or set GEMINI_API_KEY.")
+        raise SystemExit("Missing API key. Pass --api-key or set OPENROUTER_API_KEY.")
 
     regimes = ["A", "B", "C", "D", "E", "F"]
     regime_rng = random.Random(args.seed)
