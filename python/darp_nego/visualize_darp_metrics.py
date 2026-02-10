@@ -316,6 +316,10 @@ def visualize_metrics(metrics_path: str, output_dir: str) -> List[str]:
 
     ok_df = pd.DataFrame(ok_records)
     exclude_cols = ["case_name", "company_name", "solve_status"]
+    for col in ok_df.columns:
+        if col in exclude_cols:
+            continue
+        ok_df[col] = pd.to_numeric(ok_df[col], errors="coerce")
     dist_path = os.path.join(output_dir, "darp_metric_distributions.png")
     if _plot_all_distributions(ok_df, exclude_cols, dist_path):
         outputs.append("darp_metric_distributions.png")
