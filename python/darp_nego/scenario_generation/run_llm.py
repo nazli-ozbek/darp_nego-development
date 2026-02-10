@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import sys
 import random
@@ -9,7 +10,14 @@ PROJECT_PY_DIR = os.path.dirname(SCENARIO_DIR)
 if PROJECT_PY_DIR not in sys.path:
     sys.path.insert(0, PROJECT_PY_DIR)
 
-from llm_scenario import LLMScenarioConfig, generate_case_with_llm, postprocess_case, save_json
+from llm_scenario import LLMScenarioConfig, generate_case_with_llm, postprocess_case
+
+
+def _atomic_write_json(path: str, data: dict) -> None:
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w") as f:
+        json.dump(data, f, indent=4)
+    os.replace(tmp_path, path)
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,6 +55,10 @@ def main() -> None:
     hospitals_rng = random.Random(args.seed + 1)
 
     cases_data = {}
+    timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
+    folder_name = os.path.join(args.output_dir, timestamp)
+    os.makedirs(folder_name, exist_ok=True)
+    file_path_cases = os.path.join(folder_name, "company_cases.json")
     for case_index in range(1, args.num_cases + 1):
         regime = regime_rng.choice(regimes)
         num_hospitals = hospitals_rng.randint(args.hospitals_min, args.hospitals_max)
@@ -63,11 +75,13 @@ def main() -> None:
             model_name=args.model,
         )
         case_data = postprocess_case(raw_case, config)
-        cases_data[f"case_{case_index}"] = case_data
+        case_key = f"case_{case_index}"
+        cases_data[case_key] = case_data
 
-    timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
-    folder_name = os.path.join(args.output_dir, timestamp)
-    file_path_cases = save_json(folder_name, "company_cases.json", cases_data)
+        per_case_path = os.path.join(folder_name, f"{case_key}.json")
+        _atomic_write_json(per_case_path, case_data)
+        _atomic_write_json(file_path_cases, cases_data)
+
     print(f"Saved: {file_path_cases}")
 
 
