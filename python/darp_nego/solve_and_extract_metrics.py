@@ -11,13 +11,14 @@ import os
 import time
 import re
 from datetime import datetime
-from typing import Dict, Any, List, Iterable
+from typing import Dict, Any, List, Iterable, Tuple
 
 import numpy as np
 
 from darp_nego.darp.basic_darp import BasicDARPVehicle, BasicDARPClient, BasicDARPProblem
 from darp_nego.logger.darp_routing_logger import DARPRoutingLogger
 from visualize_darp_metrics import visualize_metrics
+from route_visuals import render_route_visuals, render_routes_overview
 
 
 def _load_company_cases(file_path: str) -> Dict[str, Any]:
@@ -170,6 +171,7 @@ def solve_and_extract_metrics(
     logger = DARPRoutingLogger(log_dir=metrics_dir, session_id="darp_metrics", create_dir=False)
 
     results: List[Dict[str, Any]] = []
+    sample_routes: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
     for case_name in _sorted_case_names(data, case_id=case_id, case_ids=case_ids):
         case_data = data[case_name]
@@ -209,6 +211,15 @@ def solve_and_extract_metrics(
                     costs.append(float(solution_cost))
                     route_summary = logger._extract_route_data(company_name, problem)
                     metrics_list.append(_compute_basic_metrics(route_summary))
+                    sample_key = (case_name, company_name)
+                    if sample_key not in sample_routes:
+                        sample_routes[sample_key] = {
+                            "case_name": case_name,
+                            "company_name": company_name,
+                            "route_summary": route_summary,
+                            "data_model": problem._data_model,
+                            "coordinates": coordinates,
+                        }
                     print(
                         f"[{case_name} | {company_name}] run {run_idx}/{solve_repeats} ok "
                         f"(cost={solution_cost}, time={solve_time_sec:.3f}s)"
@@ -274,6 +285,12 @@ def solve_and_extract_metrics(
 
     visuals_dir = os.path.join(metrics_dir, "visuals", f"plots_{timestamp}")
     visualize_metrics(output_path, visuals_dir)
+    if sample_routes:
+        try:
+            render_route_visuals(sample_routes.values(), metrics_dir, timestamp=timestamp)
+            render_routes_overview(sample_routes.values(), metrics_dir, timestamp=timestamp)
+        except Exception as exc:
+            print(f"[route_visuals] warning: failed to render route visuals: {exc}")
 
     return output_path
 

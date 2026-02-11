@@ -137,6 +137,7 @@ class DARPRoutingLogger:
             prev_time = start_time  # Track the previous node's departure time
             
             # Process each node in the route
+            node_sequence: List[Dict[str, Any]] = []
             while not routing.IsEnd(index):
                 node_index = manager.IndexToNode(index)
                 stops += 1
@@ -145,6 +146,23 @@ class DARPRoutingLogger:
                 time_var = time_dimension.CumulVar(index)
                 current_time_min = solution.Min(time_var)
                 current_time_max = solution.Max(time_var)
+
+                # Track node sequence for visualization
+                node_entry: Dict[str, Any] = {
+                    "node_index": node_index,
+                    "arrival_time": current_time_min,
+                    "departure_time": current_time_max,
+                }
+                if "location_mapper" in data:
+                    loc_info = data["location_mapper"].get_location_info(node_index)
+                    if loc_info:
+                        node_entry.update({
+                            "actual_location": loc_info.actual_location,
+                            "entity_type": loc_info.entity_type,
+                            "entity_id": loc_info.entity_id,
+                            "location_type": loc_info.location_type,
+                        })
+                node_sequence.append(node_entry)
                 
                 # Track capacity if available
                 if capacity_dimension:
@@ -213,6 +231,25 @@ class DARPRoutingLogger:
                 
                 # Move to next node
                 index = solution.Value(routing.NextVar(index))
+
+            # Add the end node to the sequence
+            end_node_index = manager.IndexToNode(index)
+            end_time_var = time_dimension.CumulVar(index)
+            end_entry: Dict[str, Any] = {
+                "node_index": end_node_index,
+                "arrival_time": solution.Min(end_time_var),
+                "departure_time": solution.Max(end_time_var),
+            }
+            if "location_mapper" in data:
+                loc_info = data["location_mapper"].get_location_info(end_node_index)
+                if loc_info:
+                    end_entry.update({
+                        "actual_location": loc_info.actual_location,
+                        "entity_type": loc_info.entity_type,
+                        "entity_id": loc_info.entity_id,
+                        "location_type": loc_info.location_type,
+                    })
+            node_sequence.append(end_entry)
             
             # Get end time from final node
             time_var = time_dimension.CumulVar(index)
@@ -241,7 +278,9 @@ class DARPRoutingLogger:
             )
             
             # Add to summary
-            routes_summary["routes"].append(vars(route_info))
+            route_payload = vars(route_info)
+            route_payload["node_sequence"] = node_sequence
+            routes_summary["routes"].append(route_payload)
             routes_summary["total_time"] += route_duration
             routes_summary["total_waiting_time"] += waiting_time
             
