@@ -40,6 +40,14 @@ def _kmeans_labels(embedding: pd.DataFrame, x_col: str, y_col: str, k: int, seed
     return pd.Series(labels, index=embedding.index, name="cluster")
 
 
+def _kmeans_labels_highdim(features: pd.DataFrame, k: int, seed: int) -> Tuple[pd.Series, float]:
+    data = features.drop(columns=["case_id"]).to_numpy(dtype=float)
+    scaled = StandardScaler().fit_transform(data)
+    model = KMeans(n_clusters=k, n_init=20, random_state=seed)
+    labels = model.fit_predict(scaled)
+    return pd.Series(labels, index=features.index, name="cluster"), float(model.inertia_)
+
+
 def _dbscan_labels(
     scaled: np.ndarray,
     eps: float,
@@ -171,11 +179,38 @@ def _run_pipeline(
     min_clusters: int,
     min_cluster_size: int,
     out_dir: str,
+    elbow_min: int,
+    elbow_max: int,
 ) -> None:
     if clusterer == "kmeans":
-        if k is None or k < 2:
-            raise ValueError("k-means requires --k >= 2")
-        labels = _kmeans_labels(embedding, x_col, y_col, k, seed)
+        n_samples = len(embedding)
+        k_min = max(2, int(elbow_min))
+        k_max = int(elbow_max)
+        k_max = min(k_max, max(2, n_samples - 1))
+        if k_max < k_min:
+            k_max = k_min
+
+        selected_k = k
+        if selected_k is None or selected_k < 2:
+            coords = embedding[[x_col, y_col]].to_numpy(dtype=float)
+            scaled = StandardScaler().fit_transform(coords)
+            k_values = list(range(k_min, k_max + 1))
+            inertias: List[float] = []
+            for kk in k_values:
+                model = KMeans(n_clusters=kk, n_init=20, random_state=seed)
+                model.fit(scaled)
+                inertias.append(float(model.inertia_))
+
+            if k_values and inertias:
+                elbow_df = pd.DataFrame({"k": k_values, "inertia": inertias})
+                elbow_df.to_csv(os.path.join(out_dir, f"{name}_elbow.csv"), index=False)
+                _plot_elbow(k_values, inertias, out_dir, name)
+                selected_k = _select_knee_k(k_values, inertias) or k_min
+                print(f"[{name}] Selected k from elbow knee: {selected_k}")
+            else:
+                selected_k = k_min
+
+        labels = _kmeans_labels(embedding, x_col, y_col, int(selected_k), seed)
     elif clusterer == "dbscan":
         labels, selected_eps = _select_dbscan_labels(
             embedding,
@@ -213,6 +248,7 @@ def _run_pipeline(
         anova_df["q_value"] = _fdr_bh(anova_df["p_value"].to_numpy())
         anova_df = anova_df.sort_values("q_value", ascending=True)
     anova_df.to_csv(os.path.join(out_dir, f"{name}_anova.csv"), index=False)
+    _write_global_anova_summary(anova_df, out_dir, name)
 
     _plot_anova_summary(anova_df, out_dir, name, top_n=15)
 
@@ -239,9 +275,65 @@ def _plot_anova_summary(anova_df: pd.DataFrame, out_dir: str, name: str, top_n: 
     ax.set_xlabel(score_label)
     ax.set_title(f"{name.upper()} ANOVA Top Features")
     ax.grid(True, axis="x", alpha=0.3)
+
+    # Add compact global summary in the top-right corner.
+    if "q_value" in anova_df.columns:
+        q = anova_df["q_value"].to_numpy(dtype=float)
+        n = len(q)
+        if n > 0:
+            d1 = float(np.sum(q < 0.05) / n)
+            summary = f"D1={d1:.3f}\nN={n}"
+            ax.text(
+                0.98,
+                0.98,
+                summary,
+                transform=ax.transAxes,
+                ha="right",
+                va="top",
+                fontsize=8,
+                bbox={"boxstyle": "round,pad=0.3", "fc": "white", "ec": "0.7", "alpha": 0.9},
+            )
+
     plt.tight_layout()
     plt.savefig(os.path.join(out_dir, f"{name}_anova_top_features.png"), dpi=200)
     plt.close()
+
+
+def _write_global_anova_summary(anova_df: pd.DataFrame, out_dir: str, name: str) -> None:
+    if anova_df.empty or "q_value" not in anova_df.columns:
+        summary = pd.DataFrame(
+            [
+                {
+                    "n_features": 0,
+                    "sig_count_q_lt_0_05": 0,
+                    "D1_sig_ratio": np.nan,
+                    "mean_q": np.nan,
+                    "median_q": np.nan,
+                    "min_q": np.nan,
+                }
+            ]
+        )
+        summary.to_csv(os.path.join(out_dir, f"{name}_anova_summary.csv"), index=False)
+        return
+
+    q = anova_df["q_value"].to_numpy(dtype=float)
+    n = int(len(q))
+    sig = int(np.sum(q < 0.05))
+    d1 = sig / n if n > 0 else np.nan
+
+    summary = pd.DataFrame(
+        [
+            {
+                "n_features": n,
+                "sig_count_q_lt_0_05": sig,
+                "D1_sig_ratio": d1,
+                "mean_q": float(np.mean(q)) if n > 0 else np.nan,
+                "median_q": float(np.median(q)) if n > 0 else np.nan,
+                "min_q": float(np.min(q)) if n > 0 else np.nan,
+            }
+        ]
+    )
+    summary.to_csv(os.path.join(out_dir, f"{name}_anova_summary.csv"), index=False)
 
 
 def _plot_clusters(embedding: pd.DataFrame, out_dir: str, name: str, x_col: str, y_col: str) -> None:
@@ -279,6 +371,112 @@ def _plot_clusters(embedding: pd.DataFrame, out_dir: str, name: str, x_col: str,
     plt.close()
 
 
+def _plot_elbow(k_values: List[int], inertias: List[float], out_dir: str, name: str) -> None:
+    try:
+        import matplotlib.pyplot as plt
+    except Exception:
+        return
+
+    if not k_values or not inertias:
+        return
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.plot(k_values, inertias, marker="o", color="#2a5599")
+    ax.set_xlabel("k")
+    ax.set_ylabel("Inertia (SSE)")
+    ax.set_title(f"{name.upper()} Elbow")
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, f"{name}_elbow.png"), dpi=200)
+    plt.close()
+
+
+def _select_knee_k(k_values: List[int], inertias: List[float]) -> Optional[int]:
+    if len(k_values) < 3:
+        return None
+    x = np.asarray(k_values, dtype=float)
+    y = np.asarray(inertias, dtype=float)
+    # Normalize to [0, 1] for stable distance computation.
+    x_norm = (x - x.min()) / (x.max() - x.min() + 1e-12)
+    y_norm = (y - y.min()) / (y.max() - y.min() + 1e-12)
+    # Distance from each point to the line between first and last.
+    x1, y1 = x_norm[0], y_norm[0]
+    x2, y2 = x_norm[-1], y_norm[-1]
+    denom = np.hypot(x2 - x1, y2 - y1) + 1e-12
+    distances = np.abs((y2 - y1) * x_norm - (x2 - x1) * y_norm + x2 * y1 - y2 * x1) / denom
+    knee_idx = int(np.argmax(distances))
+    return int(k_values[knee_idx])
+
+
+def _run_highdim_pipeline(
+    features: pd.DataFrame,
+    k: Optional[int],
+    seed: int,
+    elbow_min: int,
+    elbow_max: int,
+    out_dir: str,
+) -> None:
+    n_samples = len(features)
+    if n_samples < 3 and (k is None or k < 2):
+        raise ValueError("Need at least 3 samples for elbow analysis or specify --k >= 2")
+
+    k_min = max(2, int(elbow_min))
+    k_max = int(elbow_max)
+    k_max = min(k_max, max(2, n_samples - 1))
+    if k_max < k_min:
+        k_max = k_min
+
+    k_values = list(range(k_min, k_max + 1))
+    inertias: List[float] = []
+    for kk in k_values:
+        _, inertia = _kmeans_labels_highdim(features, kk, seed)
+        inertias.append(inertia)
+
+    if k_values and inertias:
+        elbow_df = pd.DataFrame({"k": k_values, "inertia": inertias})
+        elbow_df.to_csv(os.path.join(out_dir, "highdim_elbow.csv"), index=False)
+        _plot_elbow(k_values, inertias, out_dir, "highdim")
+
+    selected_k = k
+    if selected_k is None:
+        selected_k = _select_knee_k(k_values, inertias) or k_min
+        print(f"[highdim] Selected k from elbow knee: {selected_k}")
+
+    labels, _ = _kmeans_labels_highdim(features, int(selected_k), seed)
+    clustered = pd.DataFrame({"case_id": features["case_id"], "cluster": labels.values})
+    clustered.to_csv(os.path.join(out_dir, "highdim_clusters.csv"), index=False)
+
+    # 2D UMAP projection for visualization only.
+    data = features.drop(columns=["case_id"]).to_numpy(dtype=float)
+    scaled = StandardScaler().fit_transform(data)
+    try:
+        import umap
+    except Exception:
+        print("[highdim] UMAP not available; skipping highdim cluster visualization.")
+    else:
+        n_samples = scaled.shape[0]
+        n_neighbors = max(2, min(15, n_samples - 1))
+        reducer = umap.UMAP(n_components=2, random_state=seed, n_neighbors=n_neighbors, init="random")
+        coords = reducer.fit_transform(scaled)
+        vis_df = pd.DataFrame(
+            {
+                "case_id": features["case_id"],
+                "umap1": coords[:, 0],
+                "umap2": coords[:, 1],
+                "cluster": labels.values,
+            }
+        )
+        _plot_clusters(vis_df, out_dir, "highdim", "umap1", "umap2")
+
+    anova_df = _anova_for_features(features, labels)
+    if not anova_df.empty:
+        anova_df["q_value"] = _fdr_bh(anova_df["p_value"].to_numpy())
+        anova_df = anova_df.sort_values("q_value", ascending=True)
+    anova_df.to_csv(os.path.join(out_dir, "highdim_anova.csv"), index=False)
+    _write_global_anova_summary(anova_df, out_dir, "highdim")
+    _plot_anova_summary(anova_df, out_dir, "highdim", top_n=15)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Cluster PCA/UMAP embeddings and run ANOVA for each input feature."
@@ -293,6 +491,9 @@ def main() -> None:
     parser.add_argument("--min-clusters", type=int, default=2, help="Minimum clusters required for ANOVA")
     parser.add_argument("--min-cluster-size", type=int, default=2, help="Minimum samples per cluster for ANOVA")
     parser.add_argument("--seed", type=int, default=7, help="Random seed")
+    parser.add_argument("--highdim", action="store_true", help="Run KMeans+ANOVA on full feature vectors")
+    parser.add_argument("--elbow-min", type=int, default=2, help="Minimum k for elbow analysis")
+    parser.add_argument("--elbow-max", type=int, default=10, help="Maximum k for elbow analysis")
     # Always compute q-values (FDR) for multi-test correction.
     args = parser.parse_args()
 
@@ -325,6 +526,8 @@ def main() -> None:
                 args.min_clusters,
                 args.min_cluster_size,
                 out_dir,
+                args.elbow_min,
+                args.elbow_max,
             )
 
     if os.path.exists(umap_path):
@@ -344,7 +547,19 @@ def main() -> None:
                 args.min_clusters,
                 args.min_cluster_size,
                 out_dir,
+                args.elbow_min,
+                args.elbow_max,
             )
+
+    if args.highdim:
+        _run_highdim_pipeline(
+            features,
+            args.k,
+            args.seed,
+            args.elbow_min,
+            args.elbow_max,
+            out_dir,
+        )
 
     print(f"Cluster+ANOVA reports written to: {os.path.abspath(out_dir)}")
 

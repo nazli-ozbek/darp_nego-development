@@ -7,6 +7,8 @@ import argparse
 import json
 import os
 import re
+import subprocess
+import sys
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -180,6 +182,33 @@ def _write_combined_outputs(
     return embeddings
 
 
+def _run_cluster_anova(
+    features_path: str,
+    out_dir: str,
+    elbow_min: int,
+    elbow_max: int,
+    seed: int,
+    highdim: bool,
+) -> None:
+    cmd = [
+        sys.executable,
+        os.path.join(os.path.dirname(__file__), "embedding_cluster_anova.py"),
+        "--features",
+        features_path,
+        "--out",
+        out_dir,
+        "--elbow-min",
+        str(elbow_min),
+        "--elbow-max",
+        str(elbow_max),
+        "--seed",
+        str(seed),
+    ]
+    if highdim:
+        cmd.append("--highdim")
+    subprocess.run(cmd, check=True)
+
+
 def _natural_key(text: str) -> List[object]:
     parts = re.split(r"(\d+)", text)
     return [int(part) if part.isdigit() else part.lower() for part in parts]
@@ -211,6 +240,18 @@ def main() -> None:
         help="Number of solver runs per company to average metrics.",
     )
     parser.add_argument("--seed", type=int, default=7, help="Random seed")
+    parser.add_argument(
+        "--cluster-anova",
+        action="store_true",
+        help="Run cluster+ANOVA reports after combined metrics are written",
+    )
+    parser.add_argument(
+        "--cluster-anova-highdim",
+        action="store_true",
+        help="Include high-dimensional clustering in cluster+ANOVA reports",
+    )
+    parser.add_argument("--cluster-anova-elbow-min", type=int, default=2, help="Minimum k for elbow analysis")
+    parser.add_argument("--cluster-anova-elbow-max", type=int, default=10, help="Maximum k for elbow analysis")
     args = parser.parse_args()
 
     np.random.seed(args.seed)
@@ -276,6 +317,18 @@ def main() -> None:
         combined_features,
         seed=args.seed,
     )
+
+    if args.cluster_anova and not combined_features.empty:
+        features_path = os.path.join(args.out, "combined", "combined_feature_vectors.csv")
+        out_dir = os.path.join(args.out, "combined", "cluster_anova")
+        _run_cluster_anova(
+            features_path,
+            out_dir,
+            args.cluster_anova_elbow_min,
+            args.cluster_anova_elbow_max,
+            args.seed,
+            args.cluster_anova_highdim,
+        )
 
     print(f"Scenario metrics written under: {os.path.join(args.out, 'dataset')}")
     print(f"DARP metrics JSON: {darp_metrics_path}")
