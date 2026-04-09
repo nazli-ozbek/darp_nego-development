@@ -21,7 +21,8 @@ class BasicDARPNegotiator(ABC):
             owner_id = outcome[client_id]
             self._update_owner(client_id, owner_id)
         self.current_utility = self.current_utility + self.utility_change
-        self.darp_problem = self._last_utility_problem
+        if self._last_utility_problem is not None:
+            self.darp_problem = self._last_utility_problem
         self._last_utility_problem = None
 
     def _update_owner(self, client_id: int, agent_id: str):
@@ -106,6 +107,5 @@ class BasicDARPNegotiator(ABC):
             self._agent_id = value
         else:
             raise Exception("Agent ID should be non-empty")
-
 
 

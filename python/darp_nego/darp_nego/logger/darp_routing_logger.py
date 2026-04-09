@@ -63,8 +63,14 @@ class DARPRoutingLogger:
         Returns:
             Dictionary with the route data
         """            
-        # Extract route data from the DARP problem
-        routes_data = self._extract_route_data(agent_id, darp_problem)
+        # Extract route data from the DARP problem.
+        if darp_problem is None:
+            routes_data = {
+                "agent_id": agent_id,
+                "error": "missing_darp_problem"
+            }
+        else:
+            routes_data = self._extract_route_data(agent_id, darp_problem)
         
         # Store in the appropriate section based on phase
         if phase == 'initial':
