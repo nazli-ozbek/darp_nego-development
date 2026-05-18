@@ -1,92 +1,255 @@
-# darp_nego
+# DARP Negotiation
 
+This repository contains a multi-company DARP (Dial-a-Ride Problem) negotiation framework for comparing heuristic and learning-based negotiation strategies under the same scenario and baseline routing conditions.
 
+The current codebase supports:
 
-## Getting started
+- `heuristic`: heuristic proposal generation, swaps only on full acceptance.
+- `heuristic_partial`: heuristic proposal generation, swaps on full or partial acceptance.
+- `learning`: learning/model-guided proposal generation, swaps on full or partial acceptance.
+- deterministic fair-comparison runs with shared seed lists and OR-Tools single-worker solving.
+- JSON scenario loading, negotiation/routing logging, per-session metrics, and aggregate analysis scripts.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Repository Layout
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- `darp_nego/`: main package.
+- `darp_nego/core/`: DARP domain objects, OR-Tools solver integration, negotiators, outcomes, utilities, learning models.
+- `darp_nego/protocols/`: negotiation mechanisms for heuristic, heuristic-partial, and learning strategies.
+- `darp_nego/logging/`: negotiation and routing log writers.
+- `darp_nego/runners/`: run entrypoint and runtime configuration.
+- `metrics/`: per-session negotiation/routing metrics and plots.
+- `experiments/`: dataset-level metrics and visualization scripts.
+- `scenario_generation/`: scenario generation, visualization, and generated scenario JSONs.
+- `data/companies/`: small static/debug data.
+- `stats.py`: aggregate negotiation-log analysis.
+- `analyze.py`: aggregate routing/cost analysis.
+- `RUN.md`: concise command runbook.
 
-## Add your files
+## Environment
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+Use the same Python version on both PCs for fair comparison. Python 3.11 is the intended version.
 
+```bash
+cd darp_nego-development_new
+python3 -m venv .venv
+source .venv/bin/activate
+python --version
+python -m pip install -r requirements.txt
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/vicsana1/darp_nego.git
-git branch -M main
-git push -uf origin main
+
+`requirements.txt` pins the main solver and numerical stack, including OR-Tools, NumPy, SciPy, pandas, scikit-learn, NetworkX, and PyTorch.
+
+## Configuration
+
+Runtime configuration is in:
+
+```text
+darp_nego/runners/config.py
 ```
 
-## Integrate with your tools
+Select one strategy by commenting/uncommenting:
 
-- [ ] [Set up project integrations](https://gitlab.com/vicsana1/darp_nego/-/settings/integrations)
+```python
+RUN_STRATEGY = "heuristic"
+# RUN_STRATEGY = "learning"
+# RUN_STRATEGY = "heuristic_partial"
+```
 
-## Collaborate with your team
+Fair-comparison mode:
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+```python
+FAIR_COMPARISON_MODE = True
+FAIR_COMPARISON_SEEDS = [11, 22, 33, 44, 55, 66, 77, 88, 99, 111]
+ORTOOLS_NUM_SEARCH_WORKERS = 1
+```
 
-## Test and Deploy
+For two-PC comparisons, keep the same:
 
-Use the built-in continuous integration in GitLab.
+- git commit
+- Python version
+- `requirements.txt`
+- `SCENARIO_JSON_PATH`
+- `FAIR_COMPARISON_SEEDS`
+- `ORTOOLS_NUM_SEARCH_WORKERS = 1`
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+Scenario selection:
 
-***
+```python
+USE_LATEST_SCENARIO = False
+SCENARIO_JSON_PATH = "scenario_generation/data/llm_generated/company_cases_demo_2x3.json"
+# SCENARIO_JSON_PATH = "scenario_generation/data/llm_generated/company_cases_merged_4_6_8.json"
+```
 
-# Editing this README
+Relative scenario paths are resolved from the repository root.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## Running Negotiation
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+Main entrypoint:
 
-## Name
-Choose a self-explaining name for your project.
+```bash
+python -m darp_nego.runners.run_negotiation
+```
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+With the current fair-mode config, this runs every selected scenario for each configured seed. Session names include dataset name, case id, strategy, seed, and timestamp.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+The runner prints the selected scenario file and SHA256 hash in fair mode. Use that hash to verify that both PCs are using the exact same input file.
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+## Outputs
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+Each negotiation session writes logs under:
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+```text
+logs/<session_id>/
+```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+Important files:
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+```text
+logs/<session_id>/negotiation/negotiation_<session_id>.json
+logs/<session_id>/negotiation/negotiation_<session_id>.txt
+logs/<session_id>/routing/routing_<session_id>.json
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+Per-session metrics and plots are written under:
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+```text
+metrics/<session_id>/negotiation/
+metrics/<session_id>/routing/
+```
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+Negotiation metrics include full acceptance, partial acceptance, applied swaps, utility changes, and acceptance heatmaps. Routing metrics include cost/time/utilization comparisons and related route-level plots.
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+## Aggregate Analysis
 
-## License
-For open source projects, say how it is licensed.
+After a run finishes:
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+```bash
+python stats.py
+python analyze.py
+```
+
+`stats.py` reads negotiation logs and produces aggregate CSVs/plots for:
+
+- full acceptance rate
+- partial acceptance rate
+- applied swaps
+- total proposed/accepted transfers
+- cost changes
+- round-level negotiation dynamics
+
+`analyze.py` reads routing and negotiation logs and produces:
+
+- average initial/final cost by agent count
+- cost reduction tables
+- Table 2 style negotiation summary
+- cost distribution boxplots
+- total-cost-vs-agent-count plots
+
+Both scripts use the dataset selected in `darp_nego/runners/config.py` when `USE_LATEST_SCENARIO = False`.
+
+## Scenario Files
+
+The committed demo scenario is:
+
+```text
+scenario_generation/data/llm_generated/company_cases_demo_2x3.json
+```
+
+It contains:
+
+- 2 cases with 4 companies
+- 2 cases with 6 companies
+- 2 cases with 8 companies
+
+Large raw scenario JSONs are intentionally ignored by git because they exceed GitHub's recommended or hard file-size limits. Keep large scenario files locally or share them through external storage, then point `SCENARIO_JSON_PATH` to the local relative path.
+
+Each case stores its own:
+
+- `time_matrix`
+- `coordinates`
+- `companies`
+- vehicles and clients
+
+Do not globalize `time_matrix` or `coordinates` unless every case uses the exact same location universe.
+
+## Strategy Behavior
+
+`heuristic`:
+
+- generates heuristic/farthest-distance proposals.
+- applies swaps only when all agents accept.
+- partial acceptance is logged as zero.
+
+`heuristic_partial`:
+
+- uses the same heuristic proposal style.
+- extracts acceptable sub-swaps.
+- applies swaps when the accepted subgraph is valid, even without full acceptance.
+
+`learning`:
+
+- starts from heuristic proposals while cold.
+- trains per-agent swap models from observed responses.
+- uses model-guided proposals after enough samples.
+- supports both full and partial swap application.
+
+## Fair Comparison Protocol
+
+For a fair heuristic-vs-learning comparison:
+
+1. Use the same scenario JSON on both PCs.
+2. Confirm the printed scenario SHA256 matches.
+3. Use the same git commit.
+4. Use the same Python version and pinned `requirements.txt`.
+5. Keep `ORTOOLS_NUM_SEARCH_WORKERS = 1`.
+6. Use the same `FAIR_COMPARISON_SEEDS`.
+7. Run one strategy per PC by changing only `RUN_STRATEGY`.
+8. Compare results by matching `case_id + seed`.
+
+The OR-Tools seed and single-worker setting reduce solver nondeterminism. Single-worker solving matters because multi-worker search can produce different paths across machines even with the same seed.
+
+## Scenario Generation
+
+LLM-based scenario generation lives in:
+
+```text
+scenario_generation/run_llm.py
+scenario_generation/llm_scenario.py
+```
+
+Example:
+
+```bash
+python scenario_generation/run_llm.py --help
+```
+
+Other scenario generation and visualization utilities are under `scenario_generation/`.
+
+## Experiments
+
+Dataset-level metrics and visualizations live under `experiments/`.
+
+Examples:
+
+```bash
+python experiments/solve_and_extract_metrics_impl.py --help
+python experiments/compute_metrics_impl.py --help
+python experiments/compute_joint_metrics_impl.py --help
+python experiments/embedding_cluster_anova_impl.py --help
+python experiments/embedding_feature_reports_impl.py --help
+python experiments/visualize_darp_metrics_impl.py --help
+```
+
+## Tests
+
+```bash
+python -m unittest discover -s darp_nego/test
+```
+
+The tests are useful as regression signals, but some legacy assumptions may not cover the full current fair-comparison workflow.
+
+## Notes
+
+- Use `python -m pip`, not bare `pip`, inside the virtual environment.
+- If `.venv` was created before the directory refactor, remove it and recreate it.
+- Generated logs, metrics, large local scenario JSONs, and cache files should not be committed.
