@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import glob
 import re
 import pandas as pd
+import hashlib
 
 from darp_nego.core.darp import (
     BasicDARPVehicle,
@@ -17,7 +18,13 @@ from darp_nego.core.darp import (
 from darp_nego.core.negotiator import SingleTextBasicNegotiator
 from darp_nego.protocols.heuristic.classic_single_mediated_text import ClassicSingleMediatedTextMechanism
 from darp_nego.protocols.learning.single_mediated_text import SingleMediatedTextMechanism
-from darp_nego.runners.config import DEBUG_SINGLE_SCENARIO, RUN_STRATEGY
+from darp_nego.runners.config import (
+    DEBUG_SINGLE_SCENARIO,
+    RUN_STRATEGY,
+    FAIR_COMPARISON_MODE,
+    FAIR_COMPARISON_SEEDS,
+    ORTOOLS_NUM_SEARCH_WORKERS,
+)
 from metrics.negotiation_metrics import DARPNegotiationMetrics
 from metrics.darp_routing_metrics import DARPRoutingMetrics
 
@@ -114,7 +121,7 @@ def find_latest_case_file(base_folder="scenario_generation/data/"):
         raise FileNotFoundError(f"'company_cases.json' not found at {latest_path}")
     return latest_path, latest_folder
 
-def main(strategy="heuristic"):
+def main(strategy="heuristic", run_seed=42):
 
     scenario_list = [
         ('scenario_generation/data/2025_05_04_22_22_5agents\\company_cases.json', '2025_05_04_22_22_5agents'),
@@ -149,7 +156,7 @@ def main(strategy="heuristic"):
         os.makedirs(metrics_dir, exist_ok=True)
         
         # Generate a unique session ID for this negotiation run
-        session_id = f"{latest_folder}_{case_name}_{strategy}_{datetime.now().strftime('%H%M%S')}"
+        session_id = f"{latest_folder}_{case_name}_{strategy}_seed{run_seed}_{datetime.now().strftime('%H%M%S')}"
         print(f"Starting negotiation with session ID: {session_id}")
         
         print("\nPreparing pre-negotiation phase...\n")
@@ -886,11 +893,49 @@ def analyze_negotiation_logs(session_pattern="2025_08_02_17_40_case_*"):
         'agent_breakdown': agent_breakdown
     }
 
+
+def _file_sha256(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        while True:
+            chunk = f.read(8192)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def run_fair_comparison_batch(strategy: str, seeds=None):
+    seeds = seeds or FAIR_COMPARISON_SEEDS
+    latest_case_file, latest_folder = find_latest_case_file()
+    scenario_hash = _file_sha256(latest_case_file)
+
+    print("\n=== FAIR COMPARISON MODE ===")
+    print(f"Strategy: {strategy}")
+    print(f"Scenario folder: {latest_folder}")
+    print(f"Scenario file: {latest_case_file}")
+    print(f"Scenario SHA256: {scenario_hash}")
+    print(f"Seeds: {seeds}")
+    print(f"OR-Tools workers: {ORTOOLS_NUM_SEARCH_WORKERS}")
+
+    os.environ["DARP_NEGO_ORTOOLS_NUM_SEARCH_WORKERS"] = str(ORTOOLS_NUM_SEARCH_WORKERS)
+
+    for seed in seeds:
+        print(f"\n--- Running seed={seed} ---")
+        random.seed(seed)
+        np.random.seed(seed)
+        os.environ["DARP_NEGO_ORTOOLS_SEED"] = str(seed)
+        main(strategy=strategy, run_seed=seed)
+
 if __name__ == "__main__":
     if DEBUG_SINGLE_SCENARIO:
         debug_single_scenario()
+    elif FAIR_COMPARISON_MODE:
+        run_fair_comparison_batch(strategy=RUN_STRATEGY, seeds=FAIR_COMPARISON_SEEDS)
     else:
-        main(strategy=RUN_STRATEGY)
+        os.environ["DARP_NEGO_ORTOOLS_NUM_SEARCH_WORKERS"] = str(ORTOOLS_NUM_SEARCH_WORKERS)
+        os.environ["DARP_NEGO_ORTOOLS_SEED"] = "42"
+        main(strategy=RUN_STRATEGY, run_seed=42)
         # Analyze logs after running the main function
         print("\n" + "="*60)
         print("ANALYZING NEGOTIATION LOGS")

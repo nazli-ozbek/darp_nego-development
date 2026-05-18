@@ -4,6 +4,7 @@ from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
+import os
 from functools import partial
 import random
 import json
@@ -253,6 +254,8 @@ class SolverConfig:
     EARLY_ARRIVAL_PENALTY: int = 10     # Penalty for arriving before time window
     LATE_ARRIVAL_PENALTY: int = 100     # Penalty for arriving after time window
     SEARCH_TIME_LIMIT: int = 10         # Time limit for local search in seconds
+    RANDOM_SEED: int = 42               # OR-Tools random seed
+    NUM_SEARCH_WORKERS: int = 1         # Keep 1 for deterministic runs across PCs
 
 
 @dataclass
@@ -757,6 +760,10 @@ class BasicDARPProblem:
             routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
         )
         search_parameters.time_limit.FromSeconds(config.SEARCH_TIME_LIMIT)
+        search_parameters.random_seed = int(os.getenv("DARP_NEGO_ORTOOLS_SEED", config.RANDOM_SEED))
+        search_parameters.num_search_workers = int(
+            os.getenv("DARP_NEGO_ORTOOLS_NUM_SEARCH_WORKERS", config.NUM_SEARCH_WORKERS)
+        )
         # Allow more iterations in local search
         search_parameters.local_search_operators.use_path_lns = pywrapcp.BOOL_TRUE
         search_parameters.local_search_operators.use_tsp_lns = pywrapcp.BOOL_TRUE

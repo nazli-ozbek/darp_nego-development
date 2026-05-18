@@ -14,7 +14,7 @@ pip install -r requirements.txt
 Entry point:
 
 ```bash
-python -m darp_nego.runners.run_negotiation
+python3 -m darp_nego.runners.run_negotiation
 ```
 
 Strategy selection is configured in:
@@ -22,6 +22,11 @@ Strategy selection is configured in:
 - `darp_nego/runners/config.py`
   - `RUN_STRATEGY = "heuristic"` or `RUN_STRATEGY = "learning"`
   - `DEBUG_SINGLE_SCENARIO = False/True`
+  - Fair 10-seed mode:
+    - uncomment `FAIR_COMPARISON_MODE = True`
+    - keep `FAIR_COMPARISON_SEEDS` identical on both PCs
+    - keep `ORTOOLS_NUM_SEARCH_WORKERS = 1`
+  - In fair mode, logs include `seedXX` in session names and runner prints scenario SHA256 for cross-PC baseline check.
 
 ## 3) Experiment / Analysis Scripts
 
