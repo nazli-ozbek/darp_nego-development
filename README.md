@@ -37,7 +37,7 @@ See also:
 ## Quick Start
 
 ```bash
-cd /Users/nazliozbek/Desktop/darp-nego/darp_nego-development_new
+cd darp_nego-development_new
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt

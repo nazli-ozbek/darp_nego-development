@@ -137,6 +137,9 @@ def main(strategy="heuristic", run_seed=42):
         latest_case_file, latest_folder = find_latest_case_file()
     else:
         latest_case_file = SCENARIO_JSON_PATH
+        if not os.path.isabs(latest_case_file):
+            repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+            latest_case_file = os.path.join(repo_root, latest_case_file)
         latest_folder = os.path.splitext(os.path.basename(SCENARIO_JSON_PATH))[0]
 
     print(latest_case_file)

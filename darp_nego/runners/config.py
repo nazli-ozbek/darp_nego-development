@@ -19,6 +19,7 @@ ORTOOLS_NUM_SEARCH_WORKERS = 1
 # USE_LATEST_SCENARIO = True
 USE_LATEST_SCENARIO = False
 
-# If USE_LATEST_SCENARIO is False, set one scenario JSON path below (absolute path recommended).
-SCENARIO_JSON_PATH = "/Users/nazliozbek/Desktop/darp-nego/darp_nego-development_new/scenario_generation/data/llm_generated/company_cases_demo_2x3.json"
-# SCENARIO_JSON_PATH = "/Users/nazliozbek/Desktop/darp-nego/darp_nego-development_new/scenario_generation/data/llm_generated/company_cases_merged_4_6_8.json"
+# If USE_LATEST_SCENARIO is False, set one scenario JSON path below.
+# Relative paths are resolved from the repository root.
+SCENARIO_JSON_PATH = "scenario_generation/data/llm_generated/company_cases_demo_2x3.json"
+# SCENARIO_JSON_PATH = "scenario_generation/data/llm_generated/company_cases_merged_4_6_8.json"
