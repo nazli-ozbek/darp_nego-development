@@ -8,7 +8,7 @@ class DARPNegotiationLogger:
     """
     Logger for DARP negotiation process that tracks state round by round
     and generates both JSON and human-readable TXT logs.
-    Only full acceptance by all agents is supported - no partial agreements.
+    Supports both full and partial acceptance depending on protocol behavior.
     """
     def __init__(self, log_dir: str = "logs", session_id: Optional[str] = None, log_subdir: str = ""):
         self.start_time = datetime.now()
@@ -112,6 +112,18 @@ class DARPNegotiationLogger:
                     proposed_utilities[agent_id] = agent.current_utility
                     utility_changes[agent_id] = 0
         
+        # Normalize acceptance/swap info (backward compatible with old logs)
+        full_acceptance = bool(
+            (round_summary or {}).get("full_acceptance", is_accepted)
+        )
+        num_swaps = int((round_summary or {}).get("num_swaps", 0) or 0)
+        partial_acceptance = bool(
+            (round_summary or {}).get("partial_acceptance", (num_swaps > 0 and not full_acceptance))
+        )
+        num_accepts = int(
+            (round_summary or {}).get("num_accepts", sum(1 for accepted in agent_responses.values() if accepted))
+        )
+
         # Create round data
         round_data = {
             "round_number": round_number,
@@ -121,8 +133,11 @@ class DARPNegotiationLogger:
             "utility_changes": utility_changes,
             "current_utilities": current_utilities,
             "proposed_utilities": proposed_utilities,
-            "full_acceptance": is_accepted,  # Only full acceptance is possible
-            "applied_swaps": round_summary.get('applied_swaps', []) if round_summary else []
+            "full_acceptance": full_acceptance,
+            "partial_acceptance": partial_acceptance,
+            "num_accepts": num_accepts,
+            "num_swaps": num_swaps,
+            "applied_swaps": (round_summary or {}).get('applied_swaps', [])
         }
         
         self.log_data["rounds"].append(round_data)
@@ -170,9 +185,14 @@ class DARPNegotiationLogger:
         
         avg_utility_change = sum(utility_changes.values()) / len(utility_changes) if utility_changes else 0
         
-        # Count full acceptances and rejections
-        full_acceptances = sum(1 for round_data in self.log_data["rounds"] if round_data["is_accepted"])
-        full_rejections = len(self.log_data["rounds"]) - full_acceptances
+        # Count full/partial/rejections
+        full_acceptances = sum(1 for round_data in self.log_data["rounds"] if round_data.get("full_acceptance", False))
+        partial_acceptances = sum(
+            1 for round_data in self.log_data["rounds"]
+            if round_data.get("partial_acceptance", False)
+        )
+        full_rejections = len(self.log_data["rounds"]) - full_acceptances - partial_acceptances
+        total_swaps_applied = sum(int(round_data.get("num_swaps", 0) or 0) for round_data in self.log_data["rounds"])
         
         # Calculate total utility changes from all accepted rounds
         total_utility_changes = {}
@@ -186,7 +206,9 @@ class DARPNegotiationLogger:
             "agreement_reached": agreement_reached,
             "total_rounds": round_count,
             "full_acceptances": full_acceptances,
+            "partial_acceptances": partial_acceptances,
             "full_rejections": full_rejections,
+            "total_swaps_applied": total_swaps_applied,
             "final_utilities": final_utilities,
             "initial_utilities": initial_utilities,
             "utility_changes": utility_changes,

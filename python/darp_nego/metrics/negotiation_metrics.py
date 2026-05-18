@@ -28,8 +28,10 @@ class NegotiationMetricsSummary:
     rounds_to_agreement: int  # Number of rounds until agreement (or max if no agreement)
     agreement_reached: bool  # Whether agreement was reached
     full_acceptance_rate: float  # Percentage of proposals fully accepted
-    total_acceptance_rate: float  # Percentage of proposals with any acceptance (equals full acceptance rate)
-    participating_agents: Dict[str, int]  # Always empty - no partial swaps in this protocol
+    partial_acceptance_rate: float  # Percentage of proposals partially accepted
+    total_acceptance_rate: float  # Percentage of proposals with full or partial acceptance
+    partial_swaps_count: int  # Total number of swaps applied through partial acceptance
+    participating_agents: Dict[str, int]  # Participation count in applied partial swaps by agent
     
     # Time metrics
     execution_time: float  # Total execution time in seconds
@@ -44,9 +46,9 @@ class NegotiationMetricsSummary:
             f"Gini coefficient: {self.gini_coefficient:.4f} (0=equal, 1=unequal)\n"
             f"Min/Max utility ratio: {self.min_max_ratio:.4f}\n"
             f"Full acceptance rate: {self.full_acceptance_rate:.2%}\n"
-            f"Partial acceptance rate: {self.partial_acceptance_rate:.2%} (not supported in this protocol)\n"
+            f"Partial acceptance rate: {self.partial_acceptance_rate:.2%}\n"
             f"Total acceptance rate: {self.total_acceptance_rate:.2%}\n"
-            f"Partial swaps count: {self.partial_swaps_count} (not supported in this protocol)\n"
+            f"Partial swaps count: {self.partial_swaps_count}\n"
             f"Execution time: {self.execution_time:.2f}s"
         )
 
@@ -177,26 +179,45 @@ class DARPNegotiationMetrics:
         rounds = self.log_data["rounds"]
         total_rounds = len(rounds)
         
-        # Calculate full acceptance rate (all agents accepted)
-        full_acceptances = sum(1 for round_data in rounds 
-                             if round_data.get("is_accepted", False))
-        total_rounds = len(rounds)
+        # Calculate acceptance rates.
+        # Backward compatibility:
+        # - old logs may only have "is_accepted" (full acceptance)
+        # - new logs carry "full_acceptance"/"partial_acceptance"/"num_swaps"
+        full_acceptances = sum(
+            1 for round_data in rounds
+            if bool(round_data.get("full_acceptance", round_data.get("is_accepted", False)))
+        )
+        partial_acceptances = sum(
+            1 for round_data in rounds
+            if bool(round_data.get("partial_acceptance", False))
+        )
         full_acceptance_rate = full_acceptances / total_rounds if total_rounds > 0 else 0
-        
-        # Since no partial acceptances are allowed, total acceptance rate equals full acceptance rate
-        total_acceptance_rate = full_acceptance_rate
-        
-        # No partial swaps in this protocol
-        partial_swaps_count = 0
-        
-        # No participating agents in partial swaps
-        participant_counts = {}
-        for agent_id in self.log_data["prenegotiation"]["participants"]:
-            participant_counts[agent_id] = 0
+        partial_acceptance_rate = partial_acceptances / total_rounds if total_rounds > 0 else 0
+        total_acceptance_rate = (full_acceptances + partial_acceptances) / total_rounds if total_rounds > 0 else 0
+
+        # Count swaps applied in partial-acceptance rounds
+        partial_swaps_count = sum(
+            int(round_data.get("num_swaps", 0) or 0)
+            for round_data in rounds
+            if bool(round_data.get("partial_acceptance", False))
+        )
+
+        # Agent participation counts in applied partial swaps
+        participant_counts = {agent_id: 0 for agent_id in self.log_data["prenegotiation"]["participants"]}
+        for round_data in rounds:
+            if not bool(round_data.get("partial_acceptance", False)):
+                continue
+            for applied in round_data.get("applied_swaps", []):
+                from_agent = str(applied.get("from"))
+                to_agent = str(applied.get("to"))
+                if from_agent in participant_counts:
+                    participant_counts[from_agent] += 1
+                if to_agent in participant_counts:
+                    participant_counts[to_agent] += 1
         
         return {
             "full_acceptance_rate": full_acceptance_rate,
-            "partial_acceptance_rate": 0.0,  # No partial acceptances
+            "partial_acceptance_rate": partial_acceptance_rate,
             "total_acceptance_rate": total_acceptance_rate,
             "partial_swaps_count": partial_swaps_count,
             "participating_agents": participant_counts
@@ -300,7 +321,7 @@ class DARPNegotiationMetrics:
     
     def plot_partial_acceptance_analysis(self, save_path: Optional[str] = None, show: bool = False) -> None:
         """
-        Plot analysis of acceptance patterns (no partial acceptances in this protocol).
+        Plot analysis of acceptance patterns (full, partial, rejection).
         
         Args:
             save_path: Optional file path to save the plot
@@ -315,31 +336,33 @@ class DARPNegotiationMetrics:
         # Create figure with subplots
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
         
-        # 1. Bar chart showing no partial swaps (all zeros)
-        participant_counts = {}
-        for agent_id in participants:
-            participant_counts[agent_id] = 0
+        process_metrics = self._calculate_process_metrics()
+        participant_counts = process_metrics["participating_agents"]
         
         agents = list(participant_counts.keys())
         counts = list(participant_counts.values())
         
         ax1.bar(agents, counts, color='lightgray')
-        ax1.set_title('Participation in Partial Swaps by Agent\n(No partial swaps in this protocol)')
+        ax1.set_title('Participation in Partial Swaps by Agent')
         ax1.set_xlabel('Agent ID')
         ax1.set_ylabel('Number of Partial Swaps')
         for i, v in enumerate(counts):
             ax1.text(i, v + 0.1, str(v), ha='center')
         
-        # 2. Pie chart of full acceptances vs rejections only
-        full_acceptances = sum(1 for round_data in rounds if round_data["is_accepted"])
-        rejections = len(rounds) - full_acceptances
-        
-        acceptance_labels = ['Full Acceptances', 'Rejections']
-        acceptance_data = [full_acceptances, rejections]
-        colors = ['#66b3ff', '#ff9999']
+        # 2. Pie chart of full/partial/rejections
+        full_acceptances = sum(
+            1 for round_data in rounds
+            if bool(round_data.get("full_acceptance", round_data.get("is_accepted", False)))
+        )
+        partial_acceptances = sum(1 for round_data in rounds if bool(round_data.get("partial_acceptance", False)))
+        rejections = len(rounds) - full_acceptances - partial_acceptances
+
+        acceptance_labels = ['Full Acceptances', 'Partial Acceptances', 'Rejections']
+        acceptance_data = [full_acceptances, partial_acceptances, rejections]
+        colors = ['#66b3ff', '#ffd166', '#ff9999']
         
         ax2.pie(acceptance_data, labels=acceptance_labels, colors=colors, autopct='%1.1f%%', startangle=90)
-        ax2.set_title('Proposal Outcomes\n(No partial acceptances)')
+        ax2.set_title('Proposal Outcomes')
         ax2.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
         
         plt.tight_layout()
