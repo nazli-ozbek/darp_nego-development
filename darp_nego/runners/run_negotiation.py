@@ -25,6 +25,8 @@ from darp_nego.runners.config import (
     FAIR_COMPARISON_MODE,
     FAIR_COMPARISON_SEEDS,
     ORTOOLS_NUM_SEARCH_WORKERS,
+    USE_LATEST_SCENARIO,
+    SCENARIO_JSON_PATH,
 )
 from metrics.negotiation_metrics import DARPNegotiationMetrics
 from metrics.darp_routing_metrics import DARPRoutingMetrics
@@ -131,8 +133,12 @@ def main(strategy="heuristic", run_seed=42):
     ]
     
     #for latest_case_file, latest_folder in scenario_list:
-        
-    latest_case_file, latest_folder = find_latest_case_file()
+    if USE_LATEST_SCENARIO:
+        latest_case_file, latest_folder = find_latest_case_file()
+    else:
+        latest_case_file = SCENARIO_JSON_PATH
+        latest_folder = os.path.splitext(os.path.basename(SCENARIO_JSON_PATH))[0]
+
     print(latest_case_file)
     problems_per_case = load_problems_from_json(latest_case_file)
     for case_name, case_problems in problems_per_case.items():
