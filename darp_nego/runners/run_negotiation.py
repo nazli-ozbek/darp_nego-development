@@ -17,6 +17,7 @@ from darp_nego.core.darp import (
 )
 from darp_nego.core.negotiator import SingleTextBasicNegotiator
 from darp_nego.protocols.heuristic.classic_single_mediated_text import ClassicSingleMediatedTextMechanism
+from darp_nego.protocols.heuristic.classic_partial_single_mediated_text import ClassicPartialSingleMediatedTextMechanism
 from darp_nego.protocols.learning.single_mediated_text import SingleMediatedTextMechanism
 from darp_nego.runners.config import (
     DEBUG_SINGLE_SCENARIO,
@@ -175,6 +176,14 @@ def main(strategy="heuristic", run_seed=42):
         # heuristic -> classic mechanism, learning -> learning-enabled mechanism
         if strategy == "learning":
             mechanism = SingleMediatedTextMechanism(
+                agents=negotiators,
+                max_rounds=max_round,
+                log_dir=log_dir,
+                session_id=session_id,
+                road_network=time_matrix
+            )
+        elif strategy == "heuristic_partial":
+            mechanism = ClassicPartialSingleMediatedTextMechanism(
                 agents=negotiators,
                 max_rounds=max_round,
                 log_dir=log_dir,

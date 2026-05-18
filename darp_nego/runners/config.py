@@ -3,6 +3,7 @@ DEBUG_SINGLE_SCENARIO = False
 # Select one by commenting/uncommenting:
 RUN_STRATEGY = "heuristic"
 # RUN_STRATEGY = "learning"
+# RUN_STRATEGY = "heuristic_partial"
 
 # Fair comparison mode (paired multi-seed run):
 # FAIR_COMPARISON_MODE = True

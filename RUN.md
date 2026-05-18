@@ -20,7 +20,7 @@ python3 -m darp_nego.runners.run_negotiation
 Strategy selection is configured in:
 
 - `darp_nego/runners/config.py`
-  - `RUN_STRATEGY = "heuristic"` or `RUN_STRATEGY = "learning"`
+  - `RUN_STRATEGY = "heuristic"` or `RUN_STRATEGY = "learning"` or `RUN_STRATEGY = "heuristic_partial"`
   - `DEBUG_SINGLE_SCENARIO = False/True`
   - Fair 10-seed mode:
     - uncomment `FAIR_COMPARISON_MODE = True`
