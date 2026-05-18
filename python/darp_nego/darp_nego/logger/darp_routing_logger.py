@@ -23,13 +23,7 @@ class DARPRoutingLogger:
     Logger for tracking DARP routing solutions throughout the negotiation process.
     Captures initial, per-round, and final routing solutions.
     """
-    def __init__(
-        self,
-        log_dir: str = "logs",
-        session_id: Optional[str] = None,
-        log_subdir: str = "",
-        create_dir: bool = True,
-    ):
+    def __init__(self, log_dir: str = "logs", session_id: Optional[str] = None, log_subdir: str = ""):
         self.start_time = datetime.now()
         
         # Use provided session ID or generate a new one
@@ -46,8 +40,8 @@ class DARPRoutingLogger:
             "final_routes": {}
         }
         
-        if create_dir:
-            os.makedirs(self.log_dir, exist_ok=True)
+        # Create log directory if it doesn't exist
+        os.makedirs(self.log_dir, exist_ok=True)
     
     def log_darp_solution(self, agent_id: str, phase: str, darp_problem, 
                           round_number: Optional[int] = None) -> Dict:
@@ -63,14 +57,8 @@ class DARPRoutingLogger:
         Returns:
             Dictionary with the route data
         """            
-        # Extract route data from the DARP problem.
-        if darp_problem is None:
-            routes_data = {
-                "agent_id": agent_id,
-                "error": "missing_darp_problem"
-            }
-        else:
-            routes_data = self._extract_route_data(agent_id, darp_problem)
+        # Extract route data from the DARP problem
+        routes_data = self._extract_route_data(agent_id, darp_problem)
         
         # Store in the appropriate section based on phase
         if phase == 'initial':
@@ -143,7 +131,6 @@ class DARPRoutingLogger:
             prev_time = start_time  # Track the previous node's departure time
             
             # Process each node in the route
-            node_sequence: List[Dict[str, Any]] = []
             while not routing.IsEnd(index):
                 node_index = manager.IndexToNode(index)
                 stops += 1
@@ -152,23 +139,6 @@ class DARPRoutingLogger:
                 time_var = time_dimension.CumulVar(index)
                 current_time_min = solution.Min(time_var)
                 current_time_max = solution.Max(time_var)
-
-                # Track node sequence for visualization
-                node_entry: Dict[str, Any] = {
-                    "node_index": node_index,
-                    "arrival_time": current_time_min,
-                    "departure_time": current_time_max,
-                }
-                if "location_mapper" in data:
-                    loc_info = data["location_mapper"].get_location_info(node_index)
-                    if loc_info:
-                        node_entry.update({
-                            "actual_location": loc_info.actual_location,
-                            "entity_type": loc_info.entity_type,
-                            "entity_id": loc_info.entity_id,
-                            "location_type": loc_info.location_type,
-                        })
-                node_sequence.append(node_entry)
                 
                 # Track capacity if available
                 if capacity_dimension:
@@ -186,6 +156,7 @@ class DARPRoutingLogger:
                         location_type = loc_info.location_type
                         if location_type == "pickup":
                             client_pickups.append(client_id)
+                            routes_summary["clients_served"].add(client_id)
                         elif location_type == "delivery":
                             client_deliveries.append(client_id)
                 
@@ -237,25 +208,6 @@ class DARPRoutingLogger:
                 
                 # Move to next node
                 index = solution.Value(routing.NextVar(index))
-
-            # Add the end node to the sequence
-            end_node_index = manager.IndexToNode(index)
-            end_time_var = time_dimension.CumulVar(index)
-            end_entry: Dict[str, Any] = {
-                "node_index": end_node_index,
-                "arrival_time": solution.Min(end_time_var),
-                "departure_time": solution.Max(end_time_var),
-            }
-            if "location_mapper" in data:
-                loc_info = data["location_mapper"].get_location_info(end_node_index)
-                if loc_info:
-                    end_entry.update({
-                        "actual_location": loc_info.actual_location,
-                        "entity_type": loc_info.entity_type,
-                        "entity_id": loc_info.entity_id,
-                        "location_type": loc_info.location_type,
-                    })
-            node_sequence.append(end_entry)
             
             # Get end time from final node
             time_var = time_dimension.CumulVar(index)
@@ -284,24 +236,16 @@ class DARPRoutingLogger:
             )
             
             # Add to summary
-            route_payload = vars(route_info)
-            route_payload["node_sequence"] = node_sequence
-            routes_summary["routes"].append(route_payload)
+            routes_summary["routes"].append(vars(route_info))
             routes_summary["total_time"] += route_duration
             routes_summary["total_waiting_time"] += waiting_time
             
             # Add route's late arrivals to the overall summary
             routes_summary["late_arrivals"].extend(route_late_arrivals)
         
-        # Clients served = both pickup and delivery completed
-        served = set()
-        for route in routes_summary["routes"]:
-            pickups = set(route.get("client_pickups", []))
-            deliveries = set(route.get("client_deliveries", []))
-            served.update(pickups & deliveries)
-
-        routes_summary["clients_served"] = sorted(served)
-        routes_summary["served_clients"] = len(routes_summary["clients_served"])
+        # Convert client set to list
+        routes_summary["clients_served"] = list(routes_summary["clients_served"])
+        routes_summary["client_count"] = len(routes_summary["clients_served"])
         
         # Count late arrivals by type
         pickup_delays = 0

@@ -243,35 +243,12 @@ class ClassicSingleMediatedTextMechanism(BasicDARPMechanism):
             self.logger.log_round(round_number, is_accepted, self.participants, round_summary)
             # Check termination conditions
             if is_accepted:
+                print(f"\n🎉 Agreement reached after {round_number} rounds!")
+                print("💰 Final utility changes:")
+                for agent in self.participants.values():
+                    print(f"   Agent {agent.agent_id}: {agent.current_utility - agent.utility_change} → {agent.current_utility}")
+
                 self.logger.log_final_state(True, round_number, self.participants, self.domain)
-                final = self.logger.log_data.get("final_state", {})
-
-                print("\n[SUCCESS] Agreement reached!\n")
-                print(
-                    f"Negotiation completed in {final.get('total_rounds', round_number)} rounds "
-                    f"({final.get('execution_time', 0):.2f} seconds)"
-                )
-                print(f"Full acceptances: {final.get('full_acceptances', 0)}")
-                print(f"Full rejections: {final.get('full_rejections', 0)}\n")
-
-                print("Final allocation of clients:")
-                client_by_agent = {}
-                for client_id, owner in final.get("final_client_assignments", {}).items():
-                    client_by_agent.setdefault(owner, []).append(client_id)
-                for agent_id, clients in client_by_agent.items():
-                    print(f"  - Agent {agent_id}: Clients {clients}")
-
-                print("\nCost changes:")
-                for agent_id, change in final.get("utility_changes", {}).items():
-                    initial = final.get("initial_utilities", {}).get(agent_id, 0)
-                    final_utility = final.get("final_utilities", {}).get(agent_id, 0)
-                    total_change = final.get("total_utility_changes", {}).get(agent_id, 0)
-                    print(
-                        f"  - Agent {agent_id}: {initial} -> {final_utility} "
-                        f"(net change: {change}, total from accepted rounds: {total_change})"
-                    )
-
-                print(f"\nAverage utility change: {final.get('avg_utility_change', 0):.1f}\n")
 
                 for agent in self.participants.values():
                     self.routing_logger.log_darp_solution(

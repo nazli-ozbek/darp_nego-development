@@ -16,10 +16,14 @@ from darp_nego import (
 )
 from darp_nego.negotiator.single_text_basic_negotiator import SingleTextBasicNegotiator
 from darp_nego.protocol.classic_single_mediated_text import ClassicSingleMediatedTextMechanism
+from darp_nego.protocol.single_mediated_text import SingleMediatedTextMechanism
 from metrics.negotiation_metrics import DARPNegotiationMetrics
 from metrics.darp_routing_metrics import DARPRoutingMetrics
 
 DEBUG_SINGLE_SCENARIO = False
+# Select one by commenting/uncommenting:
+RUN_STRATEGY = "heuristic"
+# RUN_STRATEGY = "learning"
 
 def generate_time_matrix(size, min_time=1, max_time=10, seed=None):
     """Generate a random time matrix for the road network."""
@@ -114,7 +118,7 @@ def find_latest_case_file(base_folder="scenario_generation/data/"):
         raise FileNotFoundError(f"'company_cases.json' not found at {latest_path}")
     return latest_path, latest_folder
 
-def main():
+def main(strategy="heuristic"):
 
     scenario_list = [
         ('scenario_generation/data/2025_05_04_22_22_5agents\\company_cases.json', '2025_05_04_22_22_5agents'),
@@ -149,7 +153,7 @@ def main():
         os.makedirs(metrics_dir, exist_ok=True)
         
         # Generate a unique session ID for this negotiation run
-        session_id = latest_folder + "_" + case_name
+        session_id = f"{latest_folder}_{case_name}_{strategy}_{datetime.now().strftime('%H%M%S')}"
         print(f"Starting negotiation with session ID: {session_id}")
         
         print("\nPreparing pre-negotiation phase...\n")
@@ -162,17 +166,26 @@ def main():
             negotiators.append(negotiator)
             print(f"Created negotiator for company {company_id} with {len(case_problems[company_id].clients)} clients\n")
 
-        max_round = math.comb(len(company_ids), 2)
-        max_round = 150
+        max_round = 200 if strategy == "learning" else 150
 
-        # Create the mediation mechanism with the session ID
-        mechanism = ClassicSingleMediatedTextMechanism(
-            agents=negotiators,
-            max_rounds=max_round,
-            log_dir=log_dir,
-            session_id=session_id,  # Pass session_id to mechanism
-            road_network=time_matrix
-        )
+        # Select strategy from a single entrypoint:
+        # heuristic -> classic mechanism, learning -> learning-enabled mechanism
+        if strategy == "learning":
+            mechanism = SingleMediatedTextMechanism(
+                agents=negotiators,
+                max_rounds=max_round,
+                log_dir=log_dir,
+                session_id=session_id,
+                road_network=time_matrix
+            )
+        else:
+            mechanism = ClassicSingleMediatedTextMechanism(
+                agents=negotiators,
+                max_rounds=max_round,
+                log_dir=log_dir,
+                session_id=session_id,
+                road_network=time_matrix
+            )
         
         print("\nExecuting pre-negotiation phase...")
         mechanism.prenegotiation()
@@ -180,6 +193,9 @@ def main():
         print("\n=== Starting Negotiation ===")
         print("\nExecuting negotiation phase...")
         log_paths = mechanism.negotiation()
+        if strategy == "learning":
+            total_swaps = mechanism._total_buffer_size() if hasattr(mechanism, "_total_buffer_size") else 0
+            print(f"Case {case_name} completed. Swap dataset size: {total_swaps}")
         json_log_path, txt_log_path = log_paths
         """
         # Calculate and display metri- From the example cs
@@ -878,7 +894,7 @@ if __name__ == "__main__":
     if DEBUG_SINGLE_SCENARIO:
         debug_single_scenario()
     else:
-        main()
+        main(strategy=RUN_STRATEGY)
         # Analyze logs after running the main function
         print("\n" + "="*60)
         print("ANALYZING NEGOTIATION LOGS")
