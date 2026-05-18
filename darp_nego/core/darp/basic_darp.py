@@ -760,10 +760,12 @@ class BasicDARPProblem:
             routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
         )
         search_parameters.time_limit.FromSeconds(config.SEARCH_TIME_LIMIT)
-        search_parameters.random_seed = int(os.getenv("DARP_NEGO_ORTOOLS_SEED", config.RANDOM_SEED))
-        search_parameters.num_search_workers = int(
-            os.getenv("DARP_NEGO_ORTOOLS_NUM_SEARCH_WORKERS", config.NUM_SEARCH_WORKERS)
-        )
+        if hasattr(search_parameters, "random_seed"):
+            search_parameters.random_seed = int(os.getenv("DARP_NEGO_ORTOOLS_SEED", config.RANDOM_SEED))
+        if hasattr(search_parameters, "num_search_workers"):
+            search_parameters.num_search_workers = int(
+                os.getenv("DARP_NEGO_ORTOOLS_NUM_SEARCH_WORKERS", config.NUM_SEARCH_WORKERS)
+            )
         # Allow more iterations in local search
         search_parameters.local_search_operators.use_path_lns = pywrapcp.BOOL_TRUE
         search_parameters.local_search_operators.use_tsp_lns = pywrapcp.BOOL_TRUE
