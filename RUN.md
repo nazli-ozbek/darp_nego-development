@@ -6,7 +6,8 @@
 cd darp_nego-development_new
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python --version  # use the same Python version on both PCs, preferably Python 3.11
+python -m pip install -r requirements.txt
 ```
 
 ## 2) Main Negotiation Run
@@ -14,7 +15,7 @@ pip install -r requirements.txt
 Entry point:
 
 ```bash
-python3 -m darp_nego.runners.run_negotiation
+python -m darp_nego.runners.run_negotiation
 ```
 
 Strategy selection is configured in:
@@ -29,6 +30,17 @@ Strategy selection is configured in:
   - In fair mode, logs include `seedXX` in session names and runner prints scenario SHA256 for cross-PC baseline check.
 
 ## 3) Experiment / Analysis Scripts
+
+After `python -m darp_nego.runners.run_negotiation`, logs are written under `logs/<session_id>/`.
+Use these scripts for aggregate analysis:
+
+```bash
+python stats.py
+python analyze.py
+```
+
+- `stats.py` reads negotiation logs and reports full/partial acceptance, applied swaps, cost changes, and round-level dynamics.
+- `analyze.py` reads routing + negotiation logs and builds cost tables/plots grouped by agent count.
 
 All canonical scripts are under `experiments/` and end with `_impl.py`.
 

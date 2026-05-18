@@ -40,7 +40,8 @@ See also:
 cd darp_nego-development_new
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python --version  # use the same Python version on both PCs, preferably Python 3.11
+python -m pip install -r requirements.txt
 ```
 
 ## Main Negotiation Run

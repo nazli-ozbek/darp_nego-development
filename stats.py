@@ -26,6 +26,44 @@ plt.rcParams['font.size'] = 10
 plt.rcParams['font.family'] = 'serif'
 
 
+def _scenario_name_from_config(base_dir: str):
+    config_path = os.path.join(base_dir, "darp_nego", "runners", "config.py")
+    if not os.path.exists(config_path):
+        return None
+
+    import ast
+    with open(config_path, "r", encoding="utf-8") as f:
+        tree = ast.parse(f.read())
+
+    values = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            try:
+                values[node.targets[0].id] = ast.literal_eval(node.value)
+            except Exception:
+                continue
+
+    if values.get("USE_LATEST_SCENARIO", False):
+        return None
+
+    scenario_path = values.get("SCENARIO_JSON_PATH")
+    if not scenario_path:
+        return None
+    return os.path.splitext(os.path.basename(scenario_path))[0]
+
+
+def _valid_session_folders(log_root: str):
+    folders = []
+    for folder in glob.glob(os.path.join(log_root, "*")):
+        if not os.path.isdir(folder):
+            continue
+        session = os.path.basename(folder)
+        negotiation_json = os.path.join(folder, "negotiation", f"negotiation_{session}.json")
+        if os.path.exists(negotiation_json):
+            folders.append(folder)
+    return folders
+
+
 def find_latest_dataset_logs(log_root_name: str = "logs"):
     """Find all log directories for the latest dataset based on data folder name.
 
@@ -36,34 +74,30 @@ def find_latest_dataset_logs(log_root_name: str = "logs"):
     Returns:
         tuple[str, list[str]]: (dataset_name, list of session folder paths)
     """
-    import re
-    ts_regex = re.compile(r"^\d{4}_\d{2}_\d{2}_\d{2}_\d{2}$")
     base_dir = os.path.abspath(os.path.dirname(__file__))
-    # data_root: scenario_generation/data (relative to this file)
-    data_root = os.path.join(base_dir, "scenario_generation", "data")
-    # log_root: <project_root>/<log_root_name> (two levels up from this file)
-    log_root = os.path.join(base_dir, os.pardir, os.pardir, log_root_name)
-    log_root = os.path.abspath(log_root)
+    log_root = os.path.abspath(os.path.join(base_dir, log_root_name))
 
-    # Discover latest dataset from data folder
-    candidate_dirs = [
-        d for d in glob.glob(os.path.join(data_root, "*"))
-        if os.path.isdir(d) and ts_regex.match(os.path.basename(d))
-    ]
-
-    if candidate_dirs:
-        latest_dataset = sorted(os.path.basename(d) for d in candidate_dirs)[-1]
-        session_folders = sorted(glob.glob(os.path.join(log_root, f"{latest_dataset}_case_*")))
+    configured_dataset = _scenario_name_from_config(base_dir)
+    if configured_dataset:
+        session_folders = sorted(glob.glob(os.path.join(log_root, f"{configured_dataset}_case_*")))
+        session_folders = [folder for folder in session_folders if os.path.isdir(folder)]
         if session_folders:
-            print(f"Selected dataset from data/: {latest_dataset}")
-            print(f"Found {len(session_folders)} log directories for {latest_dataset}_case_*")
-            return latest_dataset, session_folders
-        else:
-            print(f"❌ No logs found for dataset {latest_dataset} under {log_root}/.")
-            return "", []
-    else:
-        print(f"❌ No timestamped dataset folders found under {data_root}/.")
+            print(f"Selected dataset from config: {configured_dataset}")
+            print(f"Found {len(session_folders)} log directories for {configured_dataset}_case_*")
+            return configured_dataset, session_folders
+
+    all_sessions = _valid_session_folders(log_root)
+    if not all_sessions:
+        print(f"❌ No negotiation logs found under {log_root}/.")
         return "", []
+
+    latest_session = max(all_sessions, key=os.path.getmtime)
+    latest_name = os.path.basename(latest_session)
+    dataset_name = latest_name.split("_case_")[0] if "_case_" in latest_name else latest_name
+    session_folders = sorted(glob.glob(os.path.join(log_root, f"{dataset_name}_case_*")))
+    print(f"Selected latest logged dataset: {dataset_name}")
+    print(f"Found {len(session_folders)} log directories for {dataset_name}_case_*")
+    return dataset_name, session_folders
 
 
 def extract_negotiation_data(session_folders):
@@ -122,18 +156,21 @@ def extract_negotiation_data(session_folders):
             revealed_clients = prenegotiation.get("revealed_clients", {})
             total_revealed_clients = sum(len(clients) for clients in revealed_clients.values())
 
-            # NEW LOGIC: Check last round for all agents responding with true
+            # Check last round for full acceptance
             last_round_accepted = False
             if rounds:
                 last_round = rounds[-1]  # Get the last round
                 agent_responses = last_round.get("agent_responses", {})
-                # Check if ALL agents responded with true
-                last_round_accepted = all(agent_responses.values()) if agent_responses else False
+                last_round_accepted = bool(
+                    last_round.get("full_acceptance", all(agent_responses.values()) if agent_responses else False)
+                )
 
             # Detailed round analysis
             accepted_rounds = 0
+            partial_rounds = 0
             total_proposed_transfers = 0
             total_accepted_transfers = 0
+            total_partial_swaps = 0
 
             for round_data in rounds:
                 round_number = round_data.get("round_number", 0)
@@ -142,11 +179,19 @@ def extract_negotiation_data(session_folders):
 
                 total_proposed_transfers += len(proposed_transfers)
 
-                # NEW LOGIC: Round is accepted if ALL agents responded with true
-                round_accepted = all(agent_responses.values()) if agent_responses else False
+                round_accepted = bool(
+                    round_data.get("full_acceptance", all(agent_responses.values()) if agent_responses else False)
+                )
+                partial_accepted = bool(round_data.get("partial_acceptance", False))
+                applied_swaps = round_data.get("applied_swaps", [])
+                swaps_applied = len(applied_swaps) if applied_swaps else int(round_data.get("num_swaps", 0) or 0)
                 if round_accepted:
                     accepted_rounds += 1
-                    total_accepted_transfers += len(proposed_transfers)
+                if partial_accepted:
+                    partial_rounds += 1
+                    total_partial_swaps += swaps_applied
+                if round_accepted or partial_accepted:
+                    total_accepted_transfers += swaps_applied if swaps_applied else len(proposed_transfers)
 
                 # Store detailed round data
                 detailed_rounds_data.append({
@@ -156,6 +201,8 @@ def extract_negotiation_data(session_folders):
                     'num_agents': num_agents,
                     'proposed_transfers': len(proposed_transfers),
                     'is_accepted': round_accepted,  # Based on all agents responding true
+                    'partial_acceptance': partial_accepted,
+                    'swaps_applied': swaps_applied,
                     'positive_responses': sum(1 for response in agent_responses.values() if response),
                     'negative_responses': sum(1 for response in agent_responses.values() if not response),
                     'all_agents_accepted': round_accepted
@@ -163,6 +210,7 @@ def extract_negotiation_data(session_folders):
 
             # Calculate approval rates
             full_approval_rate = accepted_rounds / total_rounds if total_rounds > 0 else 0
+            partial_approval_rate = partial_rounds / total_rounds if total_rounds > 0 else 0
             transfer_acceptance_rate = total_accepted_transfers / total_proposed_transfers if total_proposed_transfers > 0 else 0
 
             # Store comprehensive data
@@ -181,9 +229,12 @@ def extract_negotiation_data(session_folders):
                 'avg_utility_change': avg_utility_change,
                 'total_revealed_clients': total_revealed_clients,
                 'accepted_rounds': accepted_rounds,
+                'partial_rounds': partial_rounds,
                 'full_approval_rate': full_approval_rate,
+                'partial_approval_rate': partial_approval_rate,
                 'total_proposed_transfers': total_proposed_transfers,
                 'total_accepted_transfers': total_accepted_transfers,
+                'total_partial_swaps': total_partial_swaps,
                 'transfer_acceptance_rate': transfer_acceptance_rate,
                 'initial_utilities': initial_utilities,
                 'final_utilities': final_utilities,
@@ -224,8 +275,10 @@ def calculate_summary_statistics(df):
         'avg_utility_change': df['avg_utility_change'].mean(),
         'avg_revealed_clients': df['total_revealed_clients'].mean(),
         'avg_full_approval_rate': df['full_approval_rate'].mean() * 100,
+        'avg_partial_approval_rate': df['partial_approval_rate'].mean() * 100,
         'total_proposed_transfers': df['total_proposed_transfers'].sum(),
         'total_accepted_transfers': df['total_accepted_transfers'].sum(),
+        'total_partial_swaps': df['total_partial_swaps'].sum(),
         'overall_transfer_acceptance_rate': (
                     df['total_accepted_transfers'].sum() / df['total_proposed_transfers'].sum() * 100) if df[
                                                                                                               'total_proposed_transfers'].sum() > 0 else 0
@@ -351,6 +404,20 @@ def create_visualizations(df, rounds_df, output_dir="analysis", dataset_name=Non
     plt.savefig(os.path.join(output_dir, 'full_approval_rates.png'), dpi=300, bbox_inches='tight')
     plt.close()
 
+    # 7b. PARTIAL APPROVAL RATES ANALYSIS
+    plt.figure(figsize=(12, 8))
+    plt.bar(x, df['partial_approval_rate'] * 100, width, label='Partial Approval Rate',
+            color='#ffd166', alpha=0.8)
+    plt.xlabel('Case Number')
+    plt.ylabel('Rate (%)')
+    plt.title('Partial Approval Rates by Case', fontsize=14, fontweight='bold')
+    plt.legend()
+    plt.xticks(x, df['case_number'])
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'partial_approval_rates.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+
     # 8. ROUND-BY-ROUND ANALYSIS
     if not rounds_df.empty:
         plt.figure(figsize=(15, 8))
@@ -359,6 +426,8 @@ def create_visualizations(df, rounds_df, output_dir="analysis", dataset_name=Non
         round_stats = rounds_df.groupby('round_number').agg({
             'proposed_transfers': 'mean',
             'is_accepted': 'mean',
+            'partial_acceptance': 'mean',
+            'swaps_applied': 'mean',
             'positive_responses': 'mean',
             'negative_responses': 'mean',
             'all_agents_accepted': 'mean'
@@ -368,6 +437,7 @@ def create_visualizations(df, rounds_df, output_dir="analysis", dataset_name=Non
         plt.plot(x, round_stats['proposed_transfers'], 'o-', label='Proposed Transfers', linewidth=2, markersize=6)
         plt.plot(x, round_stats['positive_responses'], 's-', label='Positive Responses', linewidth=2, markersize=6)
         plt.plot(x, round_stats['negative_responses'], '^-', label='Negative Responses', linewidth=2, markersize=6)
+        plt.plot(x, round_stats['swaps_applied'], 'x-', label='Applied Swaps', linewidth=2, markersize=6)
         plt.plot(x, round_stats['all_agents_accepted'] * max(round_stats['proposed_transfers']), 'd-',
                  label='All Agents Accepted', linewidth=2, markersize=6)
 
@@ -404,8 +474,10 @@ def create_visualizations(df, rounds_df, output_dir="analysis", dataset_name=Non
         ['Average Utility Change', f"{summary_stats['avg_utility_change']:.1f}"],
         ['Average Revealed Clients', f"{summary_stats['avg_revealed_clients']:.1f}"],
         ['Average Full Approval Rate', f"{summary_stats['avg_full_approval_rate']:.1f}%"],
+        ['Average Partial Approval Rate', f"{summary_stats['avg_partial_approval_rate']:.1f}%"],
         ['Total Proposed Transfers', summary_stats['total_proposed_transfers']],
         ['Total Accepted Transfers', summary_stats['total_accepted_transfers']],
+        ['Total Partial Swaps', summary_stats['total_partial_swaps']],
         ['Overall Transfer Acceptance Rate', f"{summary_stats['overall_transfer_acceptance_rate']:.1f}%"]
     ]
 
@@ -461,8 +533,10 @@ def print_detailed_analysis(df, rounds_df, dataset_name=None):
 
     print(f"\n🤝 NEGOTIATION DYNAMICS:")
     print(f"   Average full approval rate: {summary_stats['avg_full_approval_rate']:.1f}%")
+    print(f"   Average partial approval rate: {summary_stats['avg_partial_approval_rate']:.1f}%")
     print(f"   Total proposed transfers: {summary_stats['total_proposed_transfers']}")
     print(f"   Total accepted transfers: {summary_stats['total_accepted_transfers']}")
+    print(f"   Total partial swaps: {summary_stats['total_partial_swaps']}")
     print(f"   Overall transfer acceptance rate: {summary_stats['overall_transfer_acceptance_rate']:.1f}%")
 
     print(f"\n CASE-BY-CASE BREAKDOWN:")
@@ -479,6 +553,8 @@ def print_detailed_analysis(df, rounds_df, dataset_name=None):
         round_stats = rounds_df.groupby('round_number').agg({
             'proposed_transfers': 'mean',
             'is_accepted': 'mean',
+            'partial_acceptance': 'mean',
+            'swaps_applied': 'mean',
             'positive_responses': 'mean',
             'negative_responses': 'mean',
             'all_agents_accepted': 'mean'
@@ -488,6 +564,8 @@ def print_detailed_analysis(df, rounds_df, dataset_name=None):
             print(f"   Round {int(row['round_number']):2d}: "
                   f"{row['proposed_transfers']:.1f} transfers, "
                   f"{row['is_accepted'] * 100:.1f}% full acceptance (all agents true), "
+                  f"{row['partial_acceptance'] * 100:.1f}% partial acceptance, "
+                  f"{row['swaps_applied']:.1f} applied swaps, "
                   f"{row['positive_responses']:.1f} positive responses, "
                   f"{row['negative_responses']:.1f} negative responses")
 

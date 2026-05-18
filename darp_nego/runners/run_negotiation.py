@@ -102,20 +102,24 @@ def find_latest_case_file(base_folder="scenario_generation/data/"):
     Resolves the data directory relative to this file so that it works
     regardless of the current working directory.
     """
-    script_dir = os.path.dirname(__file__)
-    resolved_base = os.path.join(script_dir, base_folder)
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    resolved_base = os.path.join(repo_root, base_folder)
 
     if not os.path.isdir(resolved_base):
         raise FileNotFoundError(f"Data folder not found: {resolved_base}")
 
-    # List all subdirectories under base folder
-    subdirs = [d for d in os.listdir(resolved_base) if os.path.isdir(os.path.join(resolved_base, d))]
+    # List only scenario folders that directly contain company_cases.json.
+    subdirs = [
+        d for d in os.listdir(resolved_base)
+        if os.path.isdir(os.path.join(resolved_base, d))
+        and os.path.isfile(os.path.join(resolved_base, d, "company_cases.json"))
+    ]
 
     # Sort by datetime in folder name
     subdirs_sorted = sorted(subdirs, reverse=True)
 
     if not subdirs_sorted:
-        raise FileNotFoundError(f"No folders found under {resolved_base}")
+        raise FileNotFoundError(f"No scenario folders with company_cases.json found under {resolved_base}")
 
     latest_folder = subdirs_sorted[0]
     latest_path = os.path.join(resolved_base, latest_folder, "company_cases.json")
@@ -124,24 +128,21 @@ def find_latest_case_file(base_folder="scenario_generation/data/"):
         raise FileNotFoundError(f"'company_cases.json' not found at {latest_path}")
     return latest_path, latest_folder
 
-def main(strategy="heuristic", run_seed=42):
 
-    scenario_list = [
-        ('scenario_generation/data/2025_05_04_22_22_5agents\\company_cases.json', '2025_05_04_22_22_5agents'),
-        ('scenario_generation/data/2025_05_04_22_23_4agents\\company_cases.json', '2025_05_04_22_23_4agents'),
-        ('scenario_generation/data/2025_05_04_22_24_3agents\\company_cases.json', '2025_05_04_22_24_3agents')
-    ]
-    
-    #for latest_case_file, latest_folder in scenario_list:
+def resolve_scenario_file():
     if USE_LATEST_SCENARIO:
-        latest_case_file, latest_folder = find_latest_case_file()
-    else:
-        latest_case_file = SCENARIO_JSON_PATH
-        if not os.path.isabs(latest_case_file):
-            repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-            latest_case_file = os.path.join(repo_root, latest_case_file)
-        latest_folder = os.path.splitext(os.path.basename(SCENARIO_JSON_PATH))[0]
+        return find_latest_case_file()
 
+    latest_case_file = SCENARIO_JSON_PATH
+    if not os.path.isabs(latest_case_file):
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        latest_case_file = os.path.join(repo_root, latest_case_file)
+    latest_folder = os.path.splitext(os.path.basename(SCENARIO_JSON_PATH))[0]
+    return latest_case_file, latest_folder
+
+
+def main(strategy="heuristic", run_seed=42):
+    latest_case_file, latest_folder = resolve_scenario_file()
     print(latest_case_file)
     problems_per_case = load_problems_from_json(latest_case_file)
     for case_name, case_problems in problems_per_case.items():
@@ -218,8 +219,7 @@ def main(strategy="heuristic", run_seed=42):
             total_swaps = mechanism._total_buffer_size() if hasattr(mechanism, "_total_buffer_size") else 0
             print(f"Case {case_name} completed. Swap dataset size: {total_swaps}")
         json_log_path, txt_log_path = log_paths
-        """
-        # Calculate and display metri- From the example cs
+
         print("\n=== Analyzing Negotiation Results ===")
         metrics = DARPNegotiationMetrics(json_log_path)
         summary = metrics.calculate_metrics()
@@ -249,7 +249,6 @@ def main(strategy="heuristic", run_seed=42):
         print(f"\nSession ID: {session_id}")
         print(f"Log files: {json_log_path}")
         print(f"Metrics: {metrics_paths['directory']}")
-        """
 
 def debug_single_scenario():
         
@@ -925,7 +924,7 @@ def _file_sha256(path: str) -> str:
 
 def run_fair_comparison_batch(strategy: str, seeds=None):
     seeds = seeds or FAIR_COMPARISON_SEEDS
-    latest_case_file, latest_folder = find_latest_case_file()
+    latest_case_file, latest_folder = resolve_scenario_file()
     scenario_hash = _file_sha256(latest_case_file)
 
     print("\n=== FAIR COMPARISON MODE ===")

@@ -125,6 +125,8 @@ class ClassicPartialSingleMediatedTextMechanism(ClassicSingleMediatedTextMechani
             self._apply_partial_swaps_to_agents(pending_updates)
             for client_id, _, new_owner in pending_updates:
                 self.domain.update_client(client_id, new_owner)
+            for agent_id, agent in self.participants.items():
+                agent_responses[agent_id]["proposed_utility"] = agent.current_utility
 
         round_summary = {
             "agent_responses": agent_responses,

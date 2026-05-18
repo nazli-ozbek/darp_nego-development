@@ -601,6 +601,10 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             for client_id, _, new_owner in pending_updates:
                 self.domain.update_client(client_id, new_owner)
 
+        if acceptable_part:
+            for agent_id, agent in self.participants.items():
+                agent_responses_for_logging[agent_id]["proposed_utility"] = agent.current_utility
+
         # === AGREEMENT CHECK ===
         is_full_acceptance = (num_accepts == len(self.participants))
         if is_full_acceptance:

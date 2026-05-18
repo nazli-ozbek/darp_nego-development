@@ -8,6 +8,45 @@ import re
 import seaborn as sns
 
 
+def _scenario_name_from_config(base_dir: str):
+    config_path = os.path.join(base_dir, "darp_nego", "runners", "config.py")
+    if not os.path.exists(config_path):
+        return None
+
+    import ast
+    with open(config_path, "r", encoding="utf-8") as f:
+        tree = ast.parse(f.read())
+
+    values = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            try:
+                values[node.targets[0].id] = ast.literal_eval(node.value)
+            except Exception:
+                continue
+
+    if values.get("USE_LATEST_SCENARIO", False):
+        return None
+
+    scenario_path = values.get("SCENARIO_JSON_PATH")
+    if not scenario_path:
+        return None
+    return os.path.splitext(os.path.basename(scenario_path))[0]
+
+
+def _valid_session_folders(log_root: str):
+    folders = []
+    for folder in glob.glob(os.path.join(log_root, "*")):
+        if not os.path.isdir(folder):
+            continue
+        session = os.path.basename(folder)
+        routing_json = os.path.join(folder, "routing", f"routing_{session}.json")
+        negotiation_json = os.path.join(folder, "negotiation", f"negotiation_{session}.json")
+        if os.path.exists(routing_json) or os.path.exists(negotiation_json):
+            folders.append(folder)
+    return folders
+
+
 def analyze_agent_costs(log_dirs):
     """
     Analyze agent costs from routing logs.
@@ -335,24 +374,23 @@ def analyze_negotiation_results(log_dirs):
             rounds = negotiation_data.get("rounds", [])
             total_rounds = len(rounds)
 
-            # Calculate exchange approval rate
-            approved_rounds = sum(1 for round_data in rounds if round_data.get("is_accepted", False))
+            # Calculate exchange approval rates
+            approved_rounds = sum(
+                1 for round_data in rounds
+                if round_data.get("full_acceptance", round_data.get("is_accepted", False))
+            )
             exchange_approval_rate = approved_rounds / total_rounds if total_rounds > 0 else 0
 
-            # No partial acceptances in this protocol
-            partial_approval_rate = 0.0
+            partial_rounds = sum(1 for round_data in rounds if round_data.get("partial_acceptance", False))
+            partial_approval_rate = partial_rounds / total_rounds if total_rounds > 0 else 0
 
-            # Count all proposed transfers in accepted rounds (only full acceptances)
-            total_proposed_swaps = sum(len(round_data.get("proposed_transfers", []))
-                                       for round_data in rounds
-                                       if round_data.get("is_accepted", False))
+            total_proposed_swaps = sum(len(round_data.get("proposed_transfers", [])) for round_data in rounds)
 
-            # Count only transfers that were actually accepted (only full acceptances)
             accepted_swaps = 0
             for round_data in rounds:
-                if round_data.get("is_accepted", False):
-                    # For fully accepted rounds, all proposed transfers were accepted
-                    accepted_swaps += len(round_data.get("proposed_transfers", []))
+                if round_data.get("full_acceptance", round_data.get("is_accepted", False)) or round_data.get("partial_acceptance", False):
+                    applied_swaps = round_data.get("applied_swaps", [])
+                    accepted_swaps += len(applied_swaps) if applied_swaps else int(round_data.get("num_swaps", 0) or 0)
 
             # Get utility changes - correct to positive
             final_state = negotiation_data.get("final_state", {})
@@ -663,27 +701,25 @@ def get_log_directories(log_root_name: str = "logs"):
     Returns:
         list: List of log directory paths matching logs/<dataset>_case_*
     """
-    import re
-    ts_regex = re.compile(r"^\d{4}_\d{2}_\d{2}_\d{2}_\d{2}$")
     base_dir = os.path.abspath(os.path.dirname(__file__))
-    data_root = os.path.join(base_dir, "scenario_generation", "data")
-    log_root = os.path.abspath(os.path.join(base_dir, os.pardir, os.pardir, log_root_name))
+    log_root = os.path.abspath(os.path.join(base_dir, log_root_name))
 
-    # Find latest timestamped dataset under data/
-    candidate_dirs = [
-        d for d in glob.glob(os.path.join(data_root, "*"))
-        if os.path.isdir(d) and ts_regex.match(os.path.basename(d))
-    ]
+    configured_dataset = _scenario_name_from_config(base_dir)
+    if configured_dataset:
+        directories = sorted(glob.glob(os.path.join(log_root, f"{configured_dataset}_case_*")))
+        directories = [d for d in directories if os.path.isdir(d)]
+        print(f"Using dataset from config: {configured_dataset}")
+    else:
+        all_sessions = _valid_session_folders(log_root)
+        if not all_sessions:
+            print(f"No log directories found under {log_root}.")
+            return []
+        latest_session = max(all_sessions, key=os.path.getmtime)
+        latest_name = os.path.basename(latest_session)
+        dataset_name = latest_name.split("_case_")[0] if "_case_" in latest_name else latest_name
+        directories = sorted(glob.glob(os.path.join(log_root, f"{dataset_name}_case_*")))
+        print(f"Using latest logged dataset: {dataset_name}")
 
-    if not candidate_dirs:
-        print("No timestamped dataset folders found under scenario_generation/data.")
-        return []
-
-    latest_dataset = sorted(os.path.basename(d) for d in candidate_dirs)[-1]
-    print(f"Using latest dataset from data/: {latest_dataset}")
-
-    # Collect all logs for this dataset
-    directories = sorted(glob.glob(os.path.join(log_root, f"{latest_dataset}_case_*")))
     print(f"Log root: {log_root}")
     print(f"Total directories: {len(directories)}")
 

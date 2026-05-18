@@ -3,3 +3,10 @@
 /.venv
 metrics_out/
 case_visuals/
+__pycache__/
+*.pyc
+.DS_Store
+scenario_generation/data/llm_generated/4_companies/
+scenario_generation/data/llm_generated/6_companies/
+scenario_generation/data/llm_generated/8_companies/
+scenario_generation/data/llm_generated/company_cases_merged_4_6_8.json

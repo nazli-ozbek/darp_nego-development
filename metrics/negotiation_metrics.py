@@ -246,8 +246,10 @@ class DARPNegotiationMetrics:
         # Track utilities over rounds using the actual current_utilities data from logs
         for round_data in rounds:
             for agent in participants:
-                # Get the current utility directly from the round data
-                current_util = round_data["current_utilities"][agent]
+                if round_data.get("full_acceptance", False) or round_data.get("partial_acceptance", False):
+                    current_util = round_data["proposed_utilities"].get(agent, round_data["current_utilities"][agent])
+                else:
+                    current_util = round_data["current_utilities"][agent]
                 utilities[agent].append(current_util)
         
         # Plot each agent's utility

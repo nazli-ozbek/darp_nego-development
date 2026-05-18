@@ -154,26 +154,9 @@ class DARPNegotiationLogger:
         final_utilities = {}
         final_client_assignments = {}
         
-        # Get the final utilities from the last accepted round's proposed utilities
-        # or from current agent utilities if no rounds were accepted
-        if self.log_data["rounds"] and any(round_data["is_accepted"] for round_data in self.log_data["rounds"]):
-            # Find the last accepted round
-            last_accepted_round = None
-            for round_data in reversed(self.log_data["rounds"]):
-                if round_data["is_accepted"]:
-                    last_accepted_round = round_data
-                    break
-            
-            if last_accepted_round:
-                final_utilities = last_accepted_round["proposed_utilities"]
-            else:
-                # Fallback to current agent utilities
-                for agent_id, agent in participants.items():
-                    final_utilities[agent_id] = agent.current_utility
-        else:
-            # No accepted rounds, use current agent utilities
-            for agent_id, agent in participants.items():
-                final_utilities[agent_id] = agent.current_utility
+        # Agent state is the source of truth after both full and partial swaps.
+        for agent_id, agent in participants.items():
+            final_utilities[agent_id] = agent.current_utility
         
         for client_id, owner in domain.client_owners.items():
             final_client_assignments[client_id] = owner
@@ -194,12 +177,12 @@ class DARPNegotiationLogger:
         full_rejections = len(self.log_data["rounds"]) - full_acceptances - partial_acceptances
         total_swaps_applied = sum(int(round_data.get("num_swaps", 0) or 0) for round_data in self.log_data["rounds"])
         
-        # Calculate total utility changes from all accepted rounds
+        # Calculate total utility changes from all rounds with applied swaps.
         total_utility_changes = {}
         for agent_id in final_utilities:
             total_utility_changes[agent_id] = 0
             for round_data in self.log_data["rounds"]:
-                if round_data["is_accepted"]:
+                if round_data.get("full_acceptance", False) or round_data.get("partial_acceptance", False):
                     total_utility_changes[agent_id] += round_data["utility_changes"].get(agent_id, 0)
         
         self.log_data["final_state"] = {
@@ -330,15 +313,16 @@ class DARPNegotiationLogger:
                 else:
                     file.write(f"  - Agent {agent_id}: {response} (cost: {current_utility})\n")
             
-            if round_data["is_accepted"]:
+            if round_data.get("full_acceptance", round_data["is_accepted"]):
                 file.write("\n[ACCEPTED] FULL ACCEPTANCE - All agents accepted the proposal\n\n")
                 file.write("Applied swaps:\n")
                 for swap in round_data.get("applied_swaps", []):
                     file.write(f"  - Client {swap['client_id']}: {swap['from']} -> {swap['to']}\n")
-                
-                file.write("\nUpdated costs:\n")
-                for agent_id, utility in round_data["current_utilities"].items():
-                    file.write(f"  - Agent {agent_id}: {utility}\n")
+            elif round_data.get("partial_acceptance", False):
+                file.write("\n[PARTIAL] PARTIAL ACCEPTANCE - Accepted sub-swaps were applied\n\n")
+                file.write("Applied swaps:\n")
+                for swap in round_data.get("applied_swaps", []):
+                    file.write(f"  - Client {swap['client_id']}: {swap['from']} -> {swap['to']}\n")
             else:
                 file.write("\n[REJECTED] FULL REJECTION - Continuing negotiation\n")
             
@@ -356,6 +340,8 @@ class DARPNegotiationLogger:
         
         file.write(f"Negotiation completed in {final['total_rounds']} rounds ({final['execution_time']:.2f} seconds)\n")
         file.write(f"Full acceptances: {final['full_acceptances']}\n")
+        file.write(f"Partial acceptances: {final['partial_acceptances']}\n")
+        file.write(f"Total swaps applied: {final['total_swaps_applied']}\n")
         file.write(f"Full rejections: {final['full_rejections']}\n\n")
         
         # Final client allocation
