@@ -24,6 +24,5 @@ Canonical code paths:
 
 Notes:
 
-- Legacy namespaces/wrappers were removed.
 - `darp_nego/protocol/` is kept only for non-code artifacts
   (`prenegotiation_specification.md`, archived `.zip`).

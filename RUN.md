@@ -9,7 +9,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## 2) Main Negotiation Run (Canonical)
+## 2) Main Negotiation Run
 
 Entry point:
 
@@ -23,7 +23,7 @@ Strategy selection is configured in:
   - `RUN_STRATEGY = "heuristic"` or `RUN_STRATEGY = "learning"`
   - `DEBUG_SINGLE_SCENARIO = False/True`
 
-## 3) Experiment / Analysis Scripts (Canonical)
+## 3) Experiment / Analysis Scripts
 
 All canonical scripts are under `experiments/` and end with `_impl.py`.
 
@@ -51,6 +51,4 @@ python -m unittest discover -s darp_nego/test
   - `darp_nego.protocols.*`
   - `darp_nego.logging.*`
   - `darp_nego.runners.*`
-- Legacy top-level wrapper scripts were removed.
 - `darp_nego/protocol/` remains only for non-code artifacts.
-
