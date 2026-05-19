@@ -11,7 +11,7 @@ import seaborn as sns
 def _scenario_name_from_config(base_dir: str):
     config_path = os.path.join(base_dir, "darp_nego", "runners", "config.py")
     if not os.path.exists(config_path):
-        return None
+        return None, None
 
     import ast
     with open(config_path, "r", encoding="utf-8") as f:
@@ -26,12 +26,12 @@ def _scenario_name_from_config(base_dir: str):
                 continue
 
     if values.get("USE_LATEST_SCENARIO", False):
-        return None
+        return None, values.get("RUN_STRATEGY")
 
     scenario_path = values.get("SCENARIO_JSON_PATH")
     if not scenario_path:
-        return None
-    return os.path.splitext(os.path.basename(scenario_path))[0]
+        return None, values.get("RUN_STRATEGY")
+    return os.path.splitext(os.path.basename(scenario_path))[0], values.get("RUN_STRATEGY")
 
 
 def _valid_session_folders(log_root: str):
@@ -72,6 +72,8 @@ def analyze_agent_costs(log_dirs):
         dir_name = os.path.basename(log_dir)
         case_match = re.search(r'case_(\d+)', dir_name)
         case_number = int(case_match.group(1)) if case_match else 0
+        seed_match = re.search(r'_seed(\d+)_', dir_name)
+        seed = int(seed_match.group(1)) if seed_match else None
 
         # Path to routing JSON file
         routing_file = os.path.join(log_dir, "routing", f"routing_{dir_name}.json")
@@ -114,6 +116,7 @@ def analyze_agent_costs(log_dirs):
             results.append({
                 "agent_count": agent_count,
                 "case_number": case_number,
+                "seed": seed,
                 "directory": dir_name,
                 "initial_total_cost": total_initial_cost,
                 "final_total_cost": total_final_cost,
@@ -773,11 +776,18 @@ def get_log_directories(log_root_name: str = "logs"):
     base_dir = os.path.abspath(os.path.dirname(__file__))
     log_root = os.path.abspath(os.path.join(base_dir, log_root_name))
 
-    configured_dataset = _scenario_name_from_config(base_dir)
+    configured_dataset, configured_strategy = _scenario_name_from_config(base_dir)
     if configured_dataset:
         directories = sorted(glob.glob(os.path.join(log_root, f"{configured_dataset}_case_*")))
         directories = [d for d in directories if os.path.isdir(d)]
         print(f"Using dataset from config: {configured_dataset}")
+        if configured_strategy:
+            strategy_token = f"_{configured_strategy}_"
+            directories = [
+                directory for directory in directories
+                if strategy_token in os.path.basename(directory)
+            ]
+            print(f"Using strategy from config: {configured_strategy}")
     else:
         all_sessions = _valid_session_folders(log_root)
         if not all_sessions:

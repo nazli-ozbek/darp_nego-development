@@ -29,7 +29,7 @@ plt.rcParams['font.family'] = 'serif'
 def _scenario_name_from_config(base_dir: str):
     config_path = os.path.join(base_dir, "darp_nego", "runners", "config.py")
     if not os.path.exists(config_path):
-        return None
+        return None, None
 
     import ast
     with open(config_path, "r", encoding="utf-8") as f:
@@ -44,12 +44,12 @@ def _scenario_name_from_config(base_dir: str):
                 continue
 
     if values.get("USE_LATEST_SCENARIO", False):
-        return None
+        return None, values.get("RUN_STRATEGY")
 
     scenario_path = values.get("SCENARIO_JSON_PATH")
     if not scenario_path:
-        return None
-    return os.path.splitext(os.path.basename(scenario_path))[0]
+        return None, values.get("RUN_STRATEGY")
+    return os.path.splitext(os.path.basename(scenario_path))[0], values.get("RUN_STRATEGY")
 
 
 def _valid_session_folders(log_root: str):
@@ -88,12 +88,20 @@ def find_latest_dataset_logs(log_root_name: str = "logs"):
     base_dir = os.path.abspath(os.path.dirname(__file__))
     log_root = os.path.abspath(os.path.join(base_dir, log_root_name))
 
-    configured_dataset = _scenario_name_from_config(base_dir)
+    configured_dataset, configured_strategy = _scenario_name_from_config(base_dir)
     if configured_dataset:
         session_folders = sorted(glob.glob(os.path.join(log_root, f"{configured_dataset}_case_*")))
         session_folders = [folder for folder in session_folders if os.path.isdir(folder)]
+        if configured_strategy:
+            strategy_token = f"_{configured_strategy}_"
+            session_folders = [
+                folder for folder in session_folders
+                if strategy_token in os.path.basename(folder)
+            ]
         if session_folders:
             print(f"Selected dataset from config: {configured_dataset}")
+            if configured_strategy:
+                print(f"Selected strategy from config: {configured_strategy}")
             print(f"Found {len(session_folders)} log directories for {configured_dataset}_case_*")
             return configured_dataset, session_folders
 
@@ -131,6 +139,8 @@ def extract_negotiation_data(session_folders):
             # Extract case number from session name
             case_match = re.search(r'case_(\d+)', session_name)
             case_number = int(case_match.group(1)) if case_match else 0
+            seed_match = re.search(r'_seed(\d+)_', session_name)
+            seed = int(seed_match.group(1)) if seed_match else None
 
             # Extract prenegotiation data
             prenegotiation = log_data.get("prenegotiation", {})
@@ -207,6 +217,7 @@ def extract_negotiation_data(session_folders):
                 # Store detailed round data
                 detailed_rounds_data.append({
                     'case_number': case_number,
+                    'seed': seed,
                     'session_name': session_name,
                     'round_number': round_number,
                     'num_agents': num_agents,
@@ -227,6 +238,7 @@ def extract_negotiation_data(session_folders):
             # Store comprehensive data
             stats_data.append({
                 'case_number': case_number,
+                'seed': seed,
                 'session_name': session_name,
                 'num_agents': num_agents,
                 'initial_total_cost': initial_total_cost,
