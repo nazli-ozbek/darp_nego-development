@@ -47,6 +47,13 @@ def _valid_session_folders(log_root: str):
     return folders
 
 
+def _ci95_half_width(series):
+    values = pd.Series(series).dropna()
+    if len(values) < 2:
+        return 0.0
+    return 1.96 * float(values.std(ddof=1)) / np.sqrt(len(values))
+
+
 def analyze_agent_costs(log_dirs):
     """
     Analyze agent costs from routing logs.
@@ -149,6 +156,17 @@ def generate_statistics(df):
 
     # Flatten the column hierarchy
     stats.columns = ['_'.join(col).strip() for col in stats.columns.values]
+
+    ci_columns = {}
+    for metric in ["initial_total_cost", "final_total_cost", "cost_reduction", "cost_reduction_absolute"]:
+        ci_half = df.groupby("agent_count")[metric].apply(_ci95_half_width)
+        mean_col = f"{metric}_mean"
+        ci_columns[f"{metric}_ci95_half_width"] = ci_half
+        ci_columns[f"{metric}_ci95_low"] = stats[mean_col] - ci_half
+        ci_columns[f"{metric}_ci95_high"] = stats[mean_col] + ci_half
+
+    for col_name, values in ci_columns.items():
+        stats[col_name] = values
 
     return stats
 
@@ -433,9 +451,10 @@ def create_table2(df):
 
     # Calculate Pareto improvement count
     pareto_counts = df.groupby('agent_count')['is_pareto_improvement'].sum().to_dict()
+    grouped = df.groupby('agent_count')
 
     # Group by agent_count and calculate statistics
-    stats = df.groupby('agent_count').agg({
+    stats = grouped.agg({
         'initial_total_cost': 'mean',
         'final_total_cost': 'mean',
         'utility_gain': 'mean',
@@ -446,6 +465,19 @@ def create_table2(df):
         'partial_approval_rate': 'mean',
         'is_pareto_improvement': 'count'
     })
+
+    ci = {}
+    for metric in [
+        'initial_total_cost',
+        'final_total_cost',
+        'utility_gain',
+        'proposed_swaps',
+        'accepted_swaps',
+        'total_rounds',
+        'exchange_approval_rate',
+        'partial_approval_rate',
+    ]:
+        ci[metric] = grouped[metric].apply(_ci95_half_width)
 
     rows = []
 
@@ -460,12 +492,19 @@ def create_table2(df):
             '# Agents': agent_count,
             'Method': 'No Negotiation',
             'Avg. Total Cost': round(stats.loc[agent_count, 'initial_total_cost'], 1),
+            'Total Cost 95% CI': (
+                f"[{stats.loc[agent_count, 'initial_total_cost'] - ci['initial_total_cost'].loc[agent_count]:.1f}, "
+                f"{stats.loc[agent_count, 'initial_total_cost'] + ci['initial_total_cost'].loc[agent_count]:.1f}]"
+            ),
             'Avg. Agent Utility Gain': 'N/A',
+            'Utility Gain 95% CI': 'N/A',
             'Avg. Proposed Swaps': 'N/A',
             'Avg. Accepted Swaps': 'N/A',
             'Avg. Rounds': 'N/A',
             'Full Approval Rate': 'N/A',
+            'Full Approval 95% CI': 'N/A',
             'Partial Approval Rate': 'N/A',
+            'Partial Approval 95% CI': 'N/A',
             'Pareto Improvement': 'N/A'
         })
 
@@ -474,21 +513,40 @@ def create_table2(df):
             '# Agents': agent_count,
             'Method': 'With Negotiation',
             'Avg. Total Cost': round(stats.loc[agent_count, 'final_total_cost'], 1),
+            'Total Cost 95% CI': (
+                f"[{stats.loc[agent_count, 'final_total_cost'] - ci['final_total_cost'].loc[agent_count]:.1f}, "
+                f"{stats.loc[agent_count, 'final_total_cost'] + ci['final_total_cost'].loc[agent_count]:.1f}]"
+            ),
             'Avg. Agent Utility Gain': round(stats.loc[agent_count, 'utility_gain'], 1),
+            'Utility Gain 95% CI': (
+                f"[{stats.loc[agent_count, 'utility_gain'] - ci['utility_gain'].loc[agent_count]:.1f}, "
+                f"{stats.loc[agent_count, 'utility_gain'] + ci['utility_gain'].loc[agent_count]:.1f}]"
+            ),
             'Avg. Proposed Swaps': round(stats.loc[agent_count, 'proposed_swaps'], 1),
             'Avg. Accepted Swaps': round(stats.loc[agent_count, 'accepted_swaps'], 1),
             'Avg. Rounds': round(stats.loc[agent_count, 'total_rounds'], 1),
             'Full Approval Rate': f"{round(stats.loc[agent_count, 'exchange_approval_rate'] * 100, 1)}%",
+            'Full Approval 95% CI': (
+                f"[{(stats.loc[agent_count, 'exchange_approval_rate'] - ci['exchange_approval_rate'].loc[agent_count]) * 100:.1f}, "
+                f"{(stats.loc[agent_count, 'exchange_approval_rate'] + ci['exchange_approval_rate'].loc[agent_count]) * 100:.1f}]"
+            ),
             'Partial Approval Rate': f"{round(stats.loc[agent_count, 'partial_approval_rate'] * 100, 1)}%",
+            'Partial Approval 95% CI': (
+                f"[{(stats.loc[agent_count, 'partial_approval_rate'] - ci['partial_approval_rate'].loc[agent_count]) * 100:.1f}, "
+                f"{(stats.loc[agent_count, 'partial_approval_rate'] + ci['partial_approval_rate'].loc[agent_count]) * 100:.1f}]"
+            ),
             'Pareto Improvement': f"{pareto_improvement_count}/{total_scenarios} ({round(pareto_percentage, 1)}%)"
         })
 
     table = pd.DataFrame(rows)
 
     # Column names are already properly formatted
-    table = table[['# Agents', 'Method', 'Avg. Total Cost', 'Avg. Agent Utility Gain',
+    table = table[['# Agents', 'Method', 'Avg. Total Cost', 'Total Cost 95% CI',
+                   'Avg. Agent Utility Gain', 'Utility Gain 95% CI',
                    'Avg. Proposed Swaps', 'Avg. Accepted Swaps', 'Avg. Rounds',
-                   'Full Approval Rate', 'Partial Approval Rate', 'Pareto Improvement']]
+                   'Full Approval Rate', 'Full Approval 95% CI',
+                   'Partial Approval Rate', 'Partial Approval 95% CI',
+                   'Pareto Improvement']]
 
     return table
 

@@ -135,11 +135,13 @@ python analyze.py
 - applied swaps
 - total proposed/accepted transfers
 - cost changes
+- mean/std/95% confidence intervals for key aggregate metrics
 - round-level negotiation dynamics
 
 `analyze.py` reads routing and negotiation logs and produces:
 
 - average initial/final cost by agent count
+- 95% confidence intervals for cost and approval-rate summaries
 - cost reduction tables
 - Table 2 style negotiation summary
 - cost distribution boxplots

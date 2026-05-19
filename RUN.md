@@ -39,8 +39,8 @@ python stats.py
 python analyze.py
 ```
 
-- `stats.py` reads negotiation logs and reports full/partial acceptance, applied swaps, cost changes, and round-level dynamics.
-- `analyze.py` reads routing + negotiation logs and builds cost tables/plots grouped by agent count.
+- `stats.py` reads negotiation logs and reports full/partial acceptance, applied swaps, cost changes, 95% confidence intervals, and round-level dynamics.
+- `analyze.py` reads routing + negotiation logs and builds cost tables/plots with 95% confidence intervals grouped by agent count.
 
 All canonical scripts are under `experiments/` and end with `_impl.py`.
 
