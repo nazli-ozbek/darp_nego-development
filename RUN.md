@@ -27,7 +27,8 @@ Strategy selection is configured in:
     - uncomment `FAIR_COMPARISON_MODE = True`
     - keep `FAIR_COMPARISON_SEEDS` identical on both PCs
     - keep `ORTOOLS_NUM_SEARCH_WORKERS = 1`
-  - In fair mode, logs include `seedXX` in session names and runner prints scenario SHA256 for cross-PC baseline check.
+- In fair mode, logs include `seedXX` in session names and runner prints scenario SHA256 for cross-PC baseline check.
+- Per-session JSON/TXT metric summaries are kept for every case/seed. Per-session PNG plots are controlled by `SAVE_PER_SESSION_METRIC_PLOTS` in `darp_nego/runners/config.py`; keep it `False` for fair batches and use aggregate plots from `stats.py` / `analyze.py`.
 
 ## 3) Experiment / Analysis Scripts
 
@@ -39,8 +40,8 @@ python stats.py
 python analyze.py
 ```
 
-- `stats.py` reads negotiation logs and reports full/partial acceptance, applied swaps, cost changes, and round-level dynamics.
-- `analyze.py` reads routing + negotiation logs and builds cost tables/plots grouped by agent count.
+- `stats.py` reads negotiation logs and reports full/partial acceptance, applied swaps, cost changes, 95% confidence intervals, and round-level dynamics.
+- `analyze.py` reads routing + negotiation logs and builds cost tables/plots with 95% confidence intervals grouped by agent count.
 
 All canonical scripts are under `experiments/` and end with `_impl.py`.
 

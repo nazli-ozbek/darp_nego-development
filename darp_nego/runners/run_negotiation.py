@@ -25,6 +25,8 @@ from darp_nego.runners.config import (
     FAIR_COMPARISON_MODE,
     FAIR_COMPARISON_SEEDS,
     ORTOOLS_NUM_SEARCH_WORKERS,
+    SAVE_PER_SESSION_METRIC_PLOTS,
+    SAVE_PER_SESSION_METRIC_TEXT,
     USE_LATEST_SCENARIO,
     SCENARIO_JSON_PATH,
 )
@@ -180,7 +182,7 @@ def main(strategy="heuristic", run_seed=42):
             negotiators.append(negotiator)
             print(f"Created negotiator for company {company_id} with {len(case_problems[company_id].clients)} clients\n")
 
-        max_round = 200 if strategy == "learning" else 150
+        max_round = 200
 
         # Select strategy from a single entrypoint:
         # heuristic -> classic mechanism, learning -> learning-enabled mechanism
@@ -227,7 +229,12 @@ def main(strategy="heuristic", run_seed=42):
         print(summary)
         
         # Save metrics with the same session ID
-        metrics_paths = metrics.save_metrics(output_dir=metrics_dir, run_id=session_id)
+        metrics_paths = metrics.save_metrics(
+            output_dir=metrics_dir,
+            run_id=session_id,
+            save_plots=SAVE_PER_SESSION_METRIC_PLOTS,
+            save_text=SAVE_PER_SESSION_METRIC_TEXT,
+        )
         
         # Calculate and save routing metrics
         routing_log_path = os.path.join(log_dir, session_id, "routing", f"routing_{session_id}.json")
@@ -242,7 +249,12 @@ def main(strategy="heuristic", run_seed=42):
                     print(phases["final"])
             
             # Save routing metrics with the same session ID
-            routing_metrics_paths = routing_metrics.save_metrics(output_dir=metrics_dir, run_id=session_id)
+            routing_metrics_paths = routing_metrics.save_metrics(
+                output_dir=metrics_dir,
+                run_id=session_id,
+                save_plots=SAVE_PER_SESSION_METRIC_PLOTS,
+                save_text=SAVE_PER_SESSION_METRIC_TEXT,
+            )
         else:
             print(f"\nWarning: Routing log not found at expected path: {routing_log_path}")
         
@@ -449,7 +461,12 @@ def debug_single_scenario():
     print(summary)
     
     # Save metrics with the same session ID
-    metrics_paths = metrics.save_metrics(output_dir=metrics_dir, run_id=session_id)
+    metrics_paths = metrics.save_metrics(
+        output_dir=metrics_dir,
+        run_id=session_id,
+        save_plots=SAVE_PER_SESSION_METRIC_PLOTS,
+        save_text=SAVE_PER_SESSION_METRIC_TEXT,
+    )
     
     # Calculate and save routing metrics
     routing_log_path = os.path.join(log_dir, session_id, "routing", f"routing_{session_id}.json")
@@ -464,7 +481,12 @@ def debug_single_scenario():
                 print(phases["final"])
         
         # Save routing metrics with the same session ID
-        routing_metrics_paths = routing_metrics.save_metrics(output_dir=metrics_dir, run_id=session_id)
+        routing_metrics_paths = routing_metrics.save_metrics(
+            output_dir=metrics_dir,
+            run_id=session_id,
+            save_plots=SAVE_PER_SESSION_METRIC_PLOTS,
+            save_text=SAVE_PER_SESSION_METRIC_TEXT,
+        )
     else:
         print(f"\nWarning: Routing log not found at expected path: {routing_log_path}")
     

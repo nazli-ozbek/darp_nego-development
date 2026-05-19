@@ -786,13 +786,21 @@ class DARPRoutingMetrics:
         else:
             plt.close()
     
-    def save_metrics(self, output_dir: str = "metrics", run_id: Optional[str] = None) -> Dict:
+    def save_metrics(
+        self,
+        output_dir: str = "metrics",
+        run_id: Optional[str] = None,
+        save_plots: bool = True,
+        save_text: bool = True,
+    ) -> Dict:
         """
-        Save metrics to files and generate plots.
+        Save routing metrics to files.
         
         Args:
             output_dir: Directory to save metrics in
             run_id: ID for this metrics run, defaults to timestamp
+            save_plots: Whether to generate per-session PNG plots
+            save_text: Whether to write the human-readable text summary
             
         Returns:
             Dictionary with paths to saved files
@@ -826,25 +834,35 @@ class DARPRoutingMetrics:
             
             json.dump(json_data, f, indent=2)
         
-        # Save summary to text
-        summary_txt_path = os.path.join(run_dir, "routing_metrics.txt")
-        with open(summary_txt_path, 'w') as f:
-            f.write("=== DARP Routing Metrics ===\n\n")
-            
-            for agent_id, phases in self.agent_metrics.items():
-                f.write(f"Agent: {agent_id}\n")
-                f.write("=" * 50 + "\n")
+        outputs = {
+            "directory": run_dir,
+            "summary_json": summary_path,
+        }
+
+        if save_text:
+            summary_txt_path = os.path.join(run_dir, "routing_metrics.txt")
+            with open(summary_txt_path, 'w') as f:
+                f.write("=== DARP Routing Metrics ===\n\n")
                 
-                if "initial" in phases:
-                    f.write("Initial Routes:\n")
-                    f.write(str(phases["initial"]) + "\n\n")
-                
-                if "final" in phases:
-                    f.write("Final Routes:\n")
-                    f.write(str(phases["final"]) + "\n\n")
-                
-                f.write("-" * 50 + "\n\n")
-        
+                for agent_id, phases in self.agent_metrics.items():
+                    f.write(f"Agent: {agent_id}\n")
+                    f.write("=" * 50 + "\n")
+                    
+                    if "initial" in phases:
+                        f.write("Initial Routes:\n")
+                        f.write(str(phases["initial"]) + "\n\n")
+                    
+                    if "final" in phases:
+                        f.write("Final Routes:\n")
+                        f.write(str(phases["final"]) + "\n\n")
+                    
+                    f.write("-" * 50 + "\n\n")
+            outputs["summary_txt"] = summary_txt_path
+
+        if not save_plots:
+            print(f"\nRouting metrics saved to: {os.path.abspath(run_dir)}")
+            return outputs
+
         # Save plots
         time_plot_path = os.path.join(run_dir, "time_comparison.png")
         self.plot_time_comparison(save_path=time_plot_path, show=False)
@@ -886,10 +904,7 @@ class DARPRoutingMetrics:
         
         print(f"\nRouting metrics saved to: {os.path.abspath(run_dir)}")
         
-        return {
-            "directory": run_dir,
-            "summary_json": summary_path,
-            "summary_txt": summary_txt_path,
+        outputs.update({
             "time_plot": time_plot_path,
             "vehicles_plot": vehicles_plot_path,
             "utilization_plot": utilization_plot_path,
@@ -897,4 +912,5 @@ class DARPRoutingMetrics:
             "cost_plot": cost_plot_path,
             **round_plots,
             "client_satisfaction_plot": client_satisfaction_path
-        } 
+        })
+        return outputs

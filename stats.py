@@ -64,6 +64,17 @@ def _valid_session_folders(log_root: str):
     return folders
 
 
+def _mean_ci95(series):
+    values = pd.Series(series).dropna()
+    if values.empty:
+        return 0.0, 0.0, 0.0
+    mean = float(values.mean())
+    if len(values) < 2:
+        return mean, mean, mean
+    half_width = 1.96 * float(values.std(ddof=1)) / math.sqrt(len(values))
+    return mean, mean - half_width, mean + half_width
+
+
 def find_latest_dataset_logs(log_root_name: str = "logs"):
     """Find all log directories for the latest dataset based on data folder name.
 
@@ -259,6 +270,19 @@ def calculate_summary_statistics(df):
     if df.empty:
         return {}
 
+    ci_metrics = {
+        "initial_cost": _mean_ci95(df["initial_total_cost"]),
+        "final_cost": _mean_ci95(df["final_total_cost"]),
+        "cost_change": _mean_ci95(df["cost_change"]),
+        "cost_change_percentage": _mean_ci95(df["cost_change_percentage"]),
+        "rounds": _mean_ci95(df["total_rounds"]),
+        "execution_time": _mean_ci95(df["execution_time"]),
+        "utility_change": _mean_ci95(df["avg_utility_change"]),
+        "full_approval_rate": _mean_ci95(df["full_approval_rate"] * 100),
+        "partial_approval_rate": _mean_ci95(df["partial_approval_rate"] * 100),
+        "transfer_acceptance_rate": _mean_ci95(df["transfer_acceptance_rate"] * 100),
+    }
+
     summary_stats = {
         'total_cases': len(df),
         'cases_with_agreement': len(df[df['agreement_reached'] == True]),
@@ -283,6 +307,11 @@ def calculate_summary_statistics(df):
                     df['total_accepted_transfers'].sum() / df['total_proposed_transfers'].sum() * 100) if df[
                                                                                                               'total_proposed_transfers'].sum() > 0 else 0
     }
+
+    for metric_name, (mean, low, high) in ci_metrics.items():
+        summary_stats[f"{metric_name}_mean"] = mean
+        summary_stats[f"{metric_name}_ci95_low"] = low
+        summary_stats[f"{metric_name}_ci95_high"] = high
 
     return summary_stats
 
@@ -465,16 +494,16 @@ def create_visualizations(df, rounds_df, output_dir="analysis", dataset_name=Non
         ['Cases with Last Round Accepted',
          f"{summary_stats['cases_with_last_round_accepted']} ({summary_stats['last_round_acceptance_rate']:.1f}%)"],
         ['Average Agents per Case', f"{summary_stats['avg_agents_per_case']:.1f}"],
-        ['Average Initial Cost', f"{summary_stats['avg_initial_cost']:.1f}"],
-        ['Average Final Cost', f"{summary_stats['avg_final_cost']:.1f}"],
+        ['Average Initial Cost', f"{summary_stats['avg_initial_cost']:.1f} [{summary_stats['initial_cost_ci95_low']:.1f}, {summary_stats['initial_cost_ci95_high']:.1f}]"],
+        ['Average Final Cost', f"{summary_stats['avg_final_cost']:.1f} [{summary_stats['final_cost_ci95_low']:.1f}, {summary_stats['final_cost_ci95_high']:.1f}]"],
         ['Average Cost Change',
-         f"{summary_stats['avg_cost_change']:.1f} ({summary_stats['avg_cost_change_percentage']:.1f}%)"],
-        ['Average Rounds', f"{summary_stats['avg_rounds']:.1f}"],
-        ['Average Execution Time', f"{summary_stats['avg_execution_time']:.1f} seconds"],
-        ['Average Utility Change', f"{summary_stats['avg_utility_change']:.1f}"],
+         f"{summary_stats['avg_cost_change']:.1f} [{summary_stats['cost_change_ci95_low']:.1f}, {summary_stats['cost_change_ci95_high']:.1f}] ({summary_stats['avg_cost_change_percentage']:.1f}%)"],
+        ['Average Rounds', f"{summary_stats['avg_rounds']:.1f} [{summary_stats['rounds_ci95_low']:.1f}, {summary_stats['rounds_ci95_high']:.1f}]"],
+        ['Average Execution Time', f"{summary_stats['avg_execution_time']:.1f} [{summary_stats['execution_time_ci95_low']:.1f}, {summary_stats['execution_time_ci95_high']:.1f}] seconds"],
+        ['Average Utility Change', f"{summary_stats['avg_utility_change']:.1f} [{summary_stats['utility_change_ci95_low']:.1f}, {summary_stats['utility_change_ci95_high']:.1f}]"],
         ['Average Revealed Clients', f"{summary_stats['avg_revealed_clients']:.1f}"],
-        ['Average Full Approval Rate', f"{summary_stats['avg_full_approval_rate']:.1f}%"],
-        ['Average Partial Approval Rate', f"{summary_stats['avg_partial_approval_rate']:.1f}%"],
+        ['Average Full Approval Rate', f"{summary_stats['avg_full_approval_rate']:.1f}% [{summary_stats['full_approval_rate_ci95_low']:.1f}, {summary_stats['full_approval_rate_ci95_high']:.1f}]"],
+        ['Average Partial Approval Rate', f"{summary_stats['avg_partial_approval_rate']:.1f}% [{summary_stats['partial_approval_rate_ci95_low']:.1f}, {summary_stats['partial_approval_rate_ci95_high']:.1f}]"],
         ['Total Proposed Transfers', summary_stats['total_proposed_transfers']],
         ['Total Accepted Transfers', summary_stats['total_accepted_transfers']],
         ['Total Partial Swaps', summary_stats['total_partial_swaps']],
@@ -521,19 +550,28 @@ def print_detailed_analysis(df, rounds_df, dataset_name=None):
     print(f"   Average agents per case: {summary_stats['avg_agents_per_case']:.1f}")
 
     print(f"\n💰 COST ANALYSIS:")
-    print(f"   Average initial cost: {summary_stats['avg_initial_cost']:.1f}")
-    print(f"   Average final cost: {summary_stats['avg_final_cost']:.1f}")
+    print(f"   Average initial cost: {summary_stats['avg_initial_cost']:.1f} "
+          f"[95% CI: {summary_stats['initial_cost_ci95_low']:.1f}, {summary_stats['initial_cost_ci95_high']:.1f}]")
+    print(f"   Average final cost: {summary_stats['avg_final_cost']:.1f} "
+          f"[95% CI: {summary_stats['final_cost_ci95_low']:.1f}, {summary_stats['final_cost_ci95_high']:.1f}]")
     print(
-        f"   Average cost change: {summary_stats['avg_cost_change']:.1f} ({summary_stats['avg_cost_change_percentage']:.1f}%)")
+        f"   Average cost change: {summary_stats['avg_cost_change']:.1f} "
+        f"[95% CI: {summary_stats['cost_change_ci95_low']:.1f}, {summary_stats['cost_change_ci95_high']:.1f}] "
+        f"({summary_stats['avg_cost_change_percentage']:.1f}%)")
 
     print(f"\n⏱️  PERFORMANCE METRICS:")
-    print(f"   Average rounds: {summary_stats['avg_rounds']:.1f}")
-    print(f"   Average execution time: {summary_stats['avg_execution_time']:.1f} seconds")
-    print(f"   Average utility change: {summary_stats['avg_utility_change']:.1f}")
+    print(f"   Average rounds: {summary_stats['avg_rounds']:.1f} "
+          f"[95% CI: {summary_stats['rounds_ci95_low']:.1f}, {summary_stats['rounds_ci95_high']:.1f}]")
+    print(f"   Average execution time: {summary_stats['avg_execution_time']:.1f} "
+          f"[95% CI: {summary_stats['execution_time_ci95_low']:.1f}, {summary_stats['execution_time_ci95_high']:.1f}] seconds")
+    print(f"   Average utility change: {summary_stats['avg_utility_change']:.1f} "
+          f"[95% CI: {summary_stats['utility_change_ci95_low']:.1f}, {summary_stats['utility_change_ci95_high']:.1f}]")
 
     print(f"\n🤝 NEGOTIATION DYNAMICS:")
-    print(f"   Average full approval rate: {summary_stats['avg_full_approval_rate']:.1f}%")
-    print(f"   Average partial approval rate: {summary_stats['avg_partial_approval_rate']:.1f}%")
+    print(f"   Average full approval rate: {summary_stats['avg_full_approval_rate']:.1f}% "
+          f"[95% CI: {summary_stats['full_approval_rate_ci95_low']:.1f}, {summary_stats['full_approval_rate_ci95_high']:.1f}]")
+    print(f"   Average partial approval rate: {summary_stats['avg_partial_approval_rate']:.1f}% "
+          f"[95% CI: {summary_stats['partial_approval_rate_ci95_low']:.1f}, {summary_stats['partial_approval_rate_ci95_high']:.1f}]")
     print(f"   Total proposed transfers: {summary_stats['total_proposed_transfers']}")
     print(f"   Total accepted transfers: {summary_stats['total_accepted_transfers']}")
     print(f"   Total partial swaps: {summary_stats['total_partial_swaps']}")
