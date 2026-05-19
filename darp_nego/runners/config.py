@@ -12,6 +12,11 @@ FAIR_COMPARISON_MODE = True
 # Keep the same seed list on all PCs for paired comparison.
 FAIR_COMPARISON_SEEDS = [11, 22, 33, 44, 55, 66, 77, 88, 99, 111]
 
+# Per-session output controls.
+# Keep JSON/TXT summaries for every case/seed, but avoid hundreds of per-session PNGs in fair batches.
+SAVE_PER_SESSION_METRIC_PLOTS = False
+SAVE_PER_SESSION_METRIC_TEXT = True
+
 # OR-Tools determinism controls for baseline reproducibility.
 ORTOOLS_NUM_SEARCH_WORKERS = 1
 

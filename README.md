@@ -8,7 +8,7 @@ The current codebase supports:
 - `heuristic_partial`: heuristic proposal generation, swaps on full or partial acceptance.
 - `learning`: learning/model-guided proposal generation, swaps on full or partial acceptance.
 - deterministic fair-comparison runs with shared seed lists and OR-Tools single-worker solving.
-- JSON scenario loading, negotiation/routing logging, per-session metrics, and aggregate analysis scripts.
+- JSON scenario loading, negotiation/routing logging, per-session metric summaries, and aggregate analysis scripts.
 
 ## Repository Layout
 
@@ -17,7 +17,7 @@ The current codebase supports:
 - `darp_nego/protocols/`: negotiation mechanisms for heuristic, heuristic-partial, and learning strategies.
 - `darp_nego/logging/`: negotiation and routing log writers.
 - `darp_nego/runners/`: run entrypoint and runtime configuration.
-- `metrics/`: per-session negotiation/routing metrics and plots.
+- `metrics/`: per-session negotiation/routing metric summaries and optional plots.
 - `experiments/`: dataset-level metrics and visualization scripts.
 - `scenario_generation/`: scenario generation, visualization, and generated scenario JSONs.
 - `data/companies/`: small static/debug data.
@@ -110,14 +110,23 @@ logs/<session_id>/negotiation/negotiation_<session_id>.txt
 logs/<session_id>/routing/routing_<session_id>.json
 ```
 
-Per-session metrics and plots are written under:
+Per-session metric summaries are written under:
 
 ```text
 metrics/<session_id>/negotiation/
 metrics/<session_id>/routing/
 ```
 
-Negotiation metrics include full acceptance, partial acceptance, applied swaps, utility changes, and acceptance heatmaps. Routing metrics include cost/time/utilization comparisons and related route-level plots.
+Negotiation metrics include full acceptance, partial acceptance, applied swaps, utility changes, and agreement status. Routing metrics include cost/time/utilization and route-level summaries.
+
+Per-session PNG plots are controlled from `darp_nego/runners/config.py`:
+
+```python
+SAVE_PER_SESSION_METRIC_PLOTS = False
+SAVE_PER_SESSION_METRIC_TEXT = True
+```
+
+For fair multi-seed runs, keeping per-session plots disabled is recommended. The raw JSON/TXT summaries are preserved for every case/seed, and aggregate plots should be generated with `stats.py` and `analyze.py` after the batch finishes.
 
 ## Aggregate Analysis
 
@@ -142,7 +151,7 @@ python analyze.py
 
 - average initial/final cost by agent count
 - 95% confidence intervals for cost and approval-rate summaries
-- cost reduction tables
+- cost change tables
 - Table 2 style negotiation summary
 - cost distribution boxplots
 - total-cost-vs-agent-count plots

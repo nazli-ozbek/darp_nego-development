@@ -402,18 +402,25 @@ class DARPNegotiationMetrics:
         
         return results
     
-    def save_metrics(self, output_dir: str = "metrics_output", run_id: Optional[str] = None) -> Dict[str, str]:
+    def save_metrics(
+        self,
+        output_dir: str = "metrics_output",
+        run_id: Optional[str] = None,
+        save_plots: bool = True,
+        save_text: bool = True,
+    ) -> Dict[str, str]:
         """
-        Save all metrics outputs (plots and summary) to a dedicated folder with unique names.
+        Save metrics outputs to a dedicated folder with unique names.
         
         Args:
             output_dir: Base directory for metrics output
             run_id: Optional unique identifier for this run (timestamp used if not provided)
+            save_plots: Whether to generate per-session PNG plots
+            save_text: Whether to write the human-readable text summary
         
         Returns:
             Dictionary mapping output types to their file paths
         """
-        import time
         from datetime import datetime
         
         # Create unique run ID if not provided
@@ -452,30 +459,33 @@ class DARPNegotiationMetrics:
             }
             json.dump(summary_dict, f, indent=2)
         
-        # Save summary to text
-        summary_txt_path = os.path.join(run_dir, "metrics_summary.txt")
-        with open(summary_txt_path, 'w') as f:
-            f.write(str(metrics_summary))
+        outputs = {
+            "directory": run_dir,
+            "summary_json": summary_path,
+        }
+
+        if save_text:
+            summary_txt_path = os.path.join(run_dir, "metrics_summary.txt")
+            with open(summary_txt_path, 'w') as f:
+                f.write(str(metrics_summary))
+            outputs["summary_txt"] = summary_txt_path
         
-        # Save utility changes plot
-        utility_plot_path = os.path.join(run_dir, "utility_changes.png")
-        self.plot_utility_changes(save_path=utility_plot_path, show=False)
-        
-        # Save acceptance heatmap
-        heatmap_path = os.path.join(run_dir, "acceptance_heatmap.png")
-        self.plot_acceptance_heatmap(save_path=heatmap_path, show=False)
-        
-        # Save partial acceptance analysis
-        partial_acceptance_path = os.path.join(run_dir, "partial_acceptance_analysis.png")
-        self.plot_partial_acceptance_analysis(save_path=partial_acceptance_path, show=False)
+        if save_plots:
+            utility_plot_path = os.path.join(run_dir, "utility_changes.png")
+            self.plot_utility_changes(save_path=utility_plot_path, show=False)
+            
+            heatmap_path = os.path.join(run_dir, "acceptance_heatmap.png")
+            self.plot_acceptance_heatmap(save_path=heatmap_path, show=False)
+            
+            partial_acceptance_path = os.path.join(run_dir, "partial_acceptance_analysis.png")
+            self.plot_partial_acceptance_analysis(save_path=partial_acceptance_path, show=False)
+
+            outputs.update({
+                "utility_plot": utility_plot_path,
+                "acceptance_heatmap": heatmap_path,
+                "partial_acceptance_plot": partial_acceptance_path,
+            })
         
         print(f"\nNegotiation metrics saved to: {os.path.abspath(run_dir)}")
         
-        # Return paths to all outputs
-        return {
-            "directory": run_dir,
-            "summary_json": summary_path,
-            "summary_txt": summary_txt_path,
-            "utility_plot": utility_plot_path,
-            "acceptance_heatmap": heatmap_path
-        } 
+        return outputs

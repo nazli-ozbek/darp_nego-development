@@ -201,19 +201,21 @@ def generate_plots(df, stats, output_dir="stats"):
     initial_bars = plt.bar(x - width / 2,
                            stats['initial_total_cost_mean'],
                            width,
-                           yerr=stats['initial_total_cost_std'],
+                           yerr=stats['initial_total_cost_ci95_half_width'],
+                           capsize=5,
                            label='No Negotiation (Initial)')
 
     final_bars = plt.bar(x + width / 2,
                          stats['final_total_cost_mean'],
                          width,
-                         yerr=stats['final_total_cost_std'],
+                         yerr=stats['final_total_cost_ci95_half_width'],
+                         capsize=5,
                          label='With Negotiation (Final)')
 
     # Add labels and title
     plt.xlabel('Number of Agents')
     plt.ylabel('Total System Cost')
-    plt.title('Average Total System Cost by Number of Agents')
+    plt.title('Average Total System Cost by Number of Agents (95% CI)')
     plt.xticks(x, agent_counts)
     plt.legend()
 
@@ -225,19 +227,20 @@ def generate_plots(df, stats, output_dir="stats"):
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'average_costs_by_agent_count.png'))
+    plt.close()
 
-    # Plot 2: Cost reduction percentage
+    # Plot 2: Cost change percentage
     plt.figure(figsize=(10, 6))
 
-    # Plot bars for cost reduction percentage
     bars = plt.bar(agent_counts,
                    stats['cost_reduction_mean'],
-                   yerr=stats['cost_reduction_std'])
+                   yerr=stats['cost_reduction_ci95_half_width'],
+                   capsize=5)
 
     # Add labels and title
     plt.xlabel('Number of Agents')
-    plt.ylabel('Cost Reduction (%)')
-    plt.title('Average Cost Reduction through Negotiation by Number of Agents')
+    plt.ylabel('Cost Change (%)')
+    plt.title('Average Cost Change through Negotiation by Number of Agents (95% CI)')
 
     # Add value labels on bars
     for bar in bars:
@@ -247,6 +250,7 @@ def generate_plots(df, stats, output_dir="stats"):
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'cost_reduction_percentage.png'))
+    plt.close()
 
     # Plot 3: Box plot of final costs by agent count
     plt.figure(figsize=(10, 6))
@@ -262,6 +266,7 @@ def generate_plots(df, stats, output_dir="stats"):
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'cost_distribution_boxplot.png'))
+    plt.close()
 
     # Plot 4: Scatter plot showing relationship between agent count and cost reduction
     plt.figure(figsize=(10, 6))
@@ -275,8 +280,8 @@ def generate_plots(df, stats, output_dir="stats"):
 
     # Add labels and title
     plt.xlabel('Number of Agents')
-    plt.ylabel('Cost Reduction (%)')
-    plt.title('Cost Reduction through Negotiation for Each Scenario')
+    plt.ylabel('Cost Change (%)')
+    plt.title('Cost Change through Negotiation for Each Scenario')
 
     # Add a line showing the mean for each agent count
     for count in agent_counts:
@@ -285,6 +290,7 @@ def generate_plots(df, stats, output_dir="stats"):
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, 'cost_reduction_scatter.png'))
+    plt.close()
 
     print(f"Plots saved to {output_dir} directory")
 
@@ -641,22 +647,24 @@ def create_cost_boxplot(df, output_dir="stats"):
     plt.grid(axis='y', linestyle='--', alpha=0.7)
 
     # Add statistics as text annotations
-    stats = df.groupby(['agent_count', 'negotiation'])['cost'].agg(['mean', 'std'])
+    stats = df.groupby(['agent_count', 'negotiation'])['cost'].agg(['mean', 'std', 'count'])
+    stats['ci95_half_width'] = df.groupby(['agent_count', 'negotiation'])['cost'].apply(_ci95_half_width)
 
     for idx, agent_count in enumerate(sorted(df['agent_count'].unique())):
         y_pos = df['cost'].max() * 0.95
         for i, method in enumerate(["No Negotiation", "With Negotiation"]):
             if (agent_count, method) in stats.index:
                 mean = stats.loc[(agent_count, method), 'mean']
-                std = stats.loc[(agent_count, method), 'std']
+                ci = stats.loc[(agent_count, method), 'ci95_half_width']
                 plt.text(idx + (-0.2 if i == 0 else 0.2), y_pos,
-                         f"Mean: {mean:.1f}\nStd: {std:.1f}",
+                         f"Mean: {mean:.1f}\n95% CI: ±{ci:.1f}",
                          fontsize=9, ha='center', va='top')
 
     # Save the figure
     plt.tight_layout()
     output_path = os.path.join(output_dir, "cost_distribution_boxplot_comparison.png")
     plt.savefig(output_path, dpi=300)
+    plt.close()
     print(f"Boxplot saved to {output_path}")
 
     return output_path
@@ -672,11 +680,13 @@ def create_cost_line_plot(df, output_dir="stats"):
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    # Group data by agent count and negotiation status to get means and std deviations
+    # Group data by agent count and negotiation status to get means and confidence intervals.
     cost_stats = df.groupby(['agent_count', 'negotiation'])['cost'].agg(['mean', 'std']).reset_index()
+    ci_stats = df.groupby(['agent_count', 'negotiation'])['cost'].apply(_ci95_half_width).reset_index(name='ci95_half_width')
+    cost_stats = cost_stats.merge(ci_stats, on=['agent_count', 'negotiation'], how='left')
 
     # Create a pivot table for easier plotting
-    pivot_df = cost_stats.pivot(index='agent_count', columns='negotiation', values=['mean', 'std'])
+    pivot_df = cost_stats.pivot(index='agent_count', columns='negotiation', values=['mean', 'std', 'ci95_half_width'])
 
     # Flatten multi-index columns
     pivot_df.columns = [f"{col[1]}_{col[0]}" for col in pivot_df.columns]
@@ -687,14 +697,14 @@ def create_cost_line_plot(df, output_dir="stats"):
 
     # Plot line for No Negotiation with error bars
     plt.errorbar(pivot_df['agent_count'], pivot_df['No Negotiation_mean'],
-                 yerr=pivot_df['No Negotiation_std'],
+                 yerr=pivot_df['No Negotiation_ci95_half_width'],
                  marker='o', markersize=8, linewidth=2,
                  capsize=6, capthick=2, color='#3274A1',
                  label='No Negotiation')
 
     # Plot line for With Negotiation with error bars
     plt.errorbar(pivot_df['agent_count'], pivot_df['With Negotiation_mean'],
-                 yerr=pivot_df['With Negotiation_std'],
+                 yerr=pivot_df['With Negotiation_ci95_half_width'],
                  marker='s', markersize=8, linewidth=2,
                  capsize=6, capthick=2, color='#E1812C',
                  label='With Negotiation')
@@ -714,7 +724,7 @@ def create_cost_line_plot(df, output_dir="stats"):
     # Add labels and title
     plt.xlabel('Number of Agents', fontsize=12)
     plt.ylabel('Total System Cost', fontsize=12)
-    plt.title('Total System Cost vs. Number of Agents', fontsize=14)
+    plt.title('Total System Cost vs. Number of Agents (95% CI)', fontsize=14)
 
     # Set x-axis ticks
     plt.xticks(pivot_df['agent_count'])
@@ -738,8 +748,8 @@ def create_cost_line_plot(df, output_dir="stats"):
                      ha='center', fontsize=10)
 
     # Add explanation of error bars
-    plt.figtext(0.5, 0.01, "Error bars show standard deviation across scenarios",
-                ha='center', fontsize=10, style='italic')
+    plt.figtext(0.5, 0.01, "Error bars show 95% confidence intervals across scenarios",
+               ha='center', fontsize=10, style='italic')
 
     # Tight layout for better spacing
     plt.tight_layout(rect=[0, 0.03, 1, 0.97])
@@ -747,6 +757,7 @@ def create_cost_line_plot(df, output_dir="stats"):
     # Save figure
     output_path = os.path.join(output_dir, "total_cost_vs_agents.png")
     plt.savefig(output_path, dpi=300)
+    plt.close()
     print(f"Line plot saved to {output_path}")
 
     return output_path
