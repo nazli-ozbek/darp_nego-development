@@ -21,8 +21,15 @@ class DARPNegotiationLogger:
         
         self.start_timestamp = self.start_time.strftime("%Y-%m-%d %H:%M:%S")
         self.log_data = {
+            "schema_version": "2.0",
             "session_id": self.session_id,
             "timestamp": self.start_timestamp,
+            "deprecated_fields": {
+                "rounds[].num_swaps": "legacy alias of rounds[].applied_swap_count",
+                "rounds[].utility_changes": "legacy alias of rounds[].cost_delta",
+                "final_state.utility_changes": "legacy alias of final_state.final_cost_delta_by_agent",
+                "final_state.total_utility_changes": "legacy alias of final_state.total_cost_delta_by_agent"
+            },
             "prenegotiation": {},
             "rounds": [],
             "final_state": {}
@@ -58,17 +65,73 @@ class DARPNegotiationLogger:
             "client_revelations": client_revelations or []
         }
     
-    def log_outcome(self, proposed_outcome: Dict, domain: Any):
-        """Log the outcome of a negotiation round"""
-        proposed_transfers = []
-        for client_id, agent_id in proposed_outcome.items():
+    @staticmethod
+    def _is_changed_transfer(transfer: Dict) -> bool:
+        return transfer.get("from") != transfer.get("to")
+
+    @classmethod
+    def _filter_changed_transfers(cls, transfers: List[Dict]) -> List[Dict]:
+        return [transfer for transfer in transfers if cls._is_changed_transfer(transfer)]
+
+    def _transfers_from_outcome(self, outcome: Dict, domain: Any) -> List[Dict]:
+        transfers = []
+        for client_id, agent_id in outcome.items():
             current_owner = domain.get_current_owner(client_id)
-            proposed_transfers.append({
+            transfer = {
                 "client_id": client_id,
                 "from": current_owner,
                 "to": agent_id
-            })
-        self.current_proposed_transfers = proposed_transfers
+            }
+            if self._is_changed_transfer(transfer):
+                transfers.append(transfer)
+        return transfers
+
+    @staticmethod
+    def _cost_delta(current_costs: Dict, new_costs: Dict) -> Dict:
+        return {
+            agent_id: new_costs.get(agent_id, current_cost) - current_cost
+            for agent_id, current_cost in current_costs.items()
+        }
+
+    @staticmethod
+    def _cost_saving(cost_delta: Dict) -> Dict:
+        return {agent_id: -delta for agent_id, delta in cost_delta.items()}
+
+    def _collect_strategy_metadata(self, round_summary: Dict) -> Dict:
+        if not round_summary:
+            return {}
+        metadata = dict(round_summary.get("strategy_metadata", {}) or {})
+        for key in (
+            "replay_buffer_size",
+            "proposal_source",
+            "pair_attempts",
+            "training_loss",
+            "model_active",
+        ):
+            if key in round_summary:
+                metadata[key] = round_summary[key]
+        return metadata
+
+    def _warn_round_invariants(self, round_data: Dict) -> List[str]:
+        warnings = []
+        if round_data["applied_swap_count"] != len(round_data.get("applied_swaps", [])):
+            warnings.append("applied_swap_count does not match len(applied_swaps)")
+        if any(not self._is_changed_transfer(swap) for swap in round_data.get("applied_swaps", [])):
+            warnings.append("applied_swaps contains a no-op transfer")
+        if any(not self._is_changed_transfer(swap) for swap in round_data.get("proposed_transfers", [])):
+            warnings.append("proposed_transfers contains a no-op transfer")
+        classes = [
+            bool(round_data.get("full_acceptance", False)),
+            bool(round_data.get("partial_acceptance", False)),
+            bool(round_data.get("rejection", False)),
+        ]
+        if sum(1 for value in classes if value) != 1:
+            warnings.append("round classification is not mutually exclusive/exhaustive")
+        return warnings
+
+    def log_outcome(self, proposed_outcome: Dict, domain: Any):
+        """Log the outcome of a negotiation round"""
+        self.current_proposed_transfers = self._transfers_from_outcome(proposed_outcome, domain)
     
     def log_responses(self, responses: set, participants: Dict):
         """Log agent responses to a proposed outcome"""
@@ -86,8 +149,7 @@ class DARPNegotiationLogger:
             # Use the detailed agent responses from the round summary
             detailed_responses = round_summary['agent_responses']
             
-            # Extract utility changes and responses from detailed responses
-            utility_changes = {}
+            # Extract cost deltas and responses from detailed responses.
             agent_responses = {}
             proposed_utilities = {}
             current_utilities = {}
@@ -95,11 +157,10 @@ class DARPNegotiationLogger:
                 agent_responses[agent_id] = response_data['accepted']
                 proposed_utilities[agent_id] = response_data['proposed_utility']
                 current_utilities[agent_id] = response_data['current_utility']
-                # Utility change is current - proposed (positive means improvement in cost)
-                utility_changes[agent_id] = current_utilities[agent_id] - proposed_utilities[agent_id]
+            cost_delta = self._cost_delta(current_utilities, proposed_utilities)
+            cost_saving = self._cost_saving(cost_delta)
         else:
             # Fallback to basic logging (for backward compatibility)
-            utility_changes = {}
             agent_responses = self.current_agent_responses
             proposed_utilities = {}
             current_utilities = {}
@@ -107,19 +168,46 @@ class DARPNegotiationLogger:
                 current_utilities[agent_id] = agent.current_utility
                 if is_accepted and agent_responses.get(agent_id, False):
                     proposed_utilities[agent_id] = agent.current_utility + agent.utility_change
-                    utility_changes[agent_id] = agent.utility_change
                 else:
                     proposed_utilities[agent_id] = agent.current_utility
-                    utility_changes[agent_id] = 0
+            cost_delta = self._cost_delta(current_utilities, proposed_utilities)
+            cost_saving = self._cost_saving(cost_delta)
         
         # Normalize acceptance/swap info (backward compatible with old logs)
-        full_acceptance = bool(
-            (round_summary or {}).get("full_acceptance", is_accepted)
+        proposed_transfers = self._filter_changed_transfers(
+            getattr(self, 'current_proposed_transfers', [])
         )
-        num_swaps = int((round_summary or {}).get("num_swaps", 0) or 0)
+        applied_swaps = self._filter_changed_transfers((round_summary or {}).get('applied_swaps', []))
+        applied_swap_count = len(applied_swaps)
+        involved_agents = sorted({
+            str(agent_id)
+            for transfer in proposed_transfers
+            for agent_id in (transfer.get("from"), transfer.get("to"))
+        })
+        involved_agents = (round_summary or {}).get("involved_agents", involved_agents)
+        all_involved_accepted = bool(
+            (round_summary or {}).get(
+                "all_involved_accepted",
+                all(agent_responses.get(agent_id, False) for agent_id in involved_agents) if involved_agents else False
+            )
+        )
+        all_participants_accepted = bool(
+            (round_summary or {}).get(
+                "all_participants_accepted",
+                all(agent_responses.get(agent_id, False) for agent_id in participants.keys()) if participants else False
+            )
+        )
+        full_acceptance_scope = (round_summary or {}).get("full_acceptance_scope", "all_participants")
+        fallback_full_acceptance = all_participants_accepted if full_acceptance_scope == "all_participants" else all_involved_accepted
+        full_acceptance = bool((round_summary or {}).get("full_acceptance", is_accepted or fallback_full_acceptance))
         partial_acceptance = bool(
-            (round_summary or {}).get("partial_acceptance", (num_swaps > 0 and not full_acceptance))
+            (round_summary or {}).get("partial_acceptance", (applied_swap_count > 0 and not full_acceptance))
         )
+        rejection = bool(not full_acceptance and not partial_acceptance)
+        applied_cost_delta = cost_delta if (full_acceptance or partial_acceptance) else {
+            agent_id: 0 for agent_id in current_utilities
+        }
+        round_cost_after = proposed_utilities if (full_acceptance or partial_acceptance) else current_utilities
         num_accepts = int(
             (round_summary or {}).get("num_accepts", sum(1 for accepted in agent_responses.values() if accepted))
         )
@@ -127,18 +215,36 @@ class DARPNegotiationLogger:
         # Create round data
         round_data = {
             "round_number": round_number,
-            "proposed_transfers": getattr(self, 'current_proposed_transfers', []),
+            "proposed_outcome": (round_summary or {}).get("proposed_outcome"),
+            "proposed_transfers": proposed_transfers,
+            "proposed_swap_count": len(proposed_transfers),
             "is_accepted": is_accepted,
             "agent_responses": agent_responses,
-            "utility_changes": utility_changes,
+            "cost_delta": cost_delta,
+            "cost_saving": cost_saving,
+            "utility_changes": cost_delta,
             "current_utilities": current_utilities,
             "proposed_utilities": proposed_utilities,
+            "round_cost_before_by_agent": current_utilities,
+            "round_cost_after_by_agent": round_cost_after,
+            "proposed_cost_delta_by_agent": cost_delta,
+            "applied_cost_delta_by_agent": applied_cost_delta,
             "full_acceptance": full_acceptance,
+            "full_acceptance_scope": full_acceptance_scope,
+            "all_involved_accepted": all_involved_accepted,
+            "all_participants_accepted": all_participants_accepted,
             "partial_acceptance": partial_acceptance,
+            "rejection": rejection,
             "num_accepts": num_accepts,
-            "num_swaps": num_swaps,
-            "applied_swaps": (round_summary or {}).get('applied_swaps', [])
+            "applied_swap_count": applied_swap_count,
+            "num_swaps": applied_swap_count,
+            "applied_swaps": applied_swaps,
+            "strategy_metadata": self._collect_strategy_metadata(round_summary or {})
         }
+        invariant_warnings = list((round_summary or {}).get("validation_warnings", []) or [])
+        invariant_warnings.extend(self._warn_round_invariants(round_data))
+        if invariant_warnings:
+            round_data["validation_warnings"] = invariant_warnings
         
         self.log_data["rounds"].append(round_data)
         
@@ -161,12 +267,16 @@ class DARPNegotiationLogger:
         for client_id, owner in domain.client_owners.items():
             final_client_assignments[client_id] = owner
         
-        # Calculate utility changes from initial to final state
+        # Calculate cost deltas from initial to final state.
         initial_utilities = self.log_data["prenegotiation"]["initial_utilities"]
-        utility_changes = {agent_id: final_utilities[agent_id] - initial_utilities[agent_id] 
-                          for agent_id in final_utilities}
+        final_cost_delta = {
+            agent_id: final_utilities[agent_id] - initial_utilities[agent_id]
+            for agent_id in final_utilities
+        }
+        final_cost_saving = self._cost_saving(final_cost_delta)
         
-        avg_utility_change = sum(utility_changes.values()) / len(utility_changes) if utility_changes else 0
+        avg_cost_delta = sum(final_cost_delta.values()) / len(final_cost_delta) if final_cost_delta else 0
+        avg_cost_saving = sum(final_cost_saving.values()) / len(final_cost_saving) if final_cost_saving else 0
         
         # Count full/partial/rejections
         full_acceptances = sum(1 for round_data in self.log_data["rounds"] if round_data.get("full_acceptance", False))
@@ -175,15 +285,16 @@ class DARPNegotiationLogger:
             if round_data.get("partial_acceptance", False)
         )
         full_rejections = len(self.log_data["rounds"]) - full_acceptances - partial_acceptances
-        total_swaps_applied = sum(int(round_data.get("num_swaps", 0) or 0) for round_data in self.log_data["rounds"])
+        total_swaps_applied = sum(len(round_data.get("applied_swaps", [])) for round_data in self.log_data["rounds"])
         
-        # Calculate total utility changes from all rounds with applied swaps.
-        total_utility_changes = {}
+        # Calculate total applied cost deltas from rounds with applied swaps.
+        total_cost_delta = {}
         for agent_id in final_utilities:
-            total_utility_changes[agent_id] = 0
+            total_cost_delta[agent_id] = 0
             for round_data in self.log_data["rounds"]:
                 if round_data.get("full_acceptance", False) or round_data.get("partial_acceptance", False):
-                    total_utility_changes[agent_id] += round_data["utility_changes"].get(agent_id, 0)
+                    total_cost_delta[agent_id] += round_data.get("applied_cost_delta_by_agent", {}).get(agent_id, 0)
+        total_cost_saving = self._cost_saving(total_cost_delta)
         
         self.log_data["final_state"] = {
             "agreement_reached": agreement_reached,
@@ -194,9 +305,15 @@ class DARPNegotiationLogger:
             "total_swaps_applied": total_swaps_applied,
             "final_utilities": final_utilities,
             "initial_utilities": initial_utilities,
-            "utility_changes": utility_changes,
-            "total_utility_changes": total_utility_changes,
-            "avg_utility_change": avg_utility_change,
+            "final_cost_delta_by_agent": final_cost_delta,
+            "final_cost_saving_by_agent": final_cost_saving,
+            "total_cost_delta_by_agent": total_cost_delta,
+            "total_cost_saving_by_agent": total_cost_saving,
+            "utility_changes": final_cost_delta,
+            "total_utility_changes": total_cost_delta,
+            "avg_cost_delta": avg_cost_delta,
+            "avg_cost_saving": avg_cost_saving,
+            "avg_utility_change": avg_cost_delta,
             "final_client_assignments": final_client_assignments,
             "execution_time": time.time() - self.execution_start_time
         }
@@ -303,13 +420,14 @@ class DARPNegotiationLogger:
             
             file.write("\nResponses:\n")
             for agent_id, accepted in round_data["agent_responses"].items():
-                utility_change = round_data["utility_changes"].get(agent_id, 0)
+                cost_delta = round_data.get("cost_delta", round_data.get("utility_changes", {})).get(agent_id, 0)
+                cost_saving = round_data.get("cost_saving", {}).get(agent_id, -cost_delta)
                 current_utility = round_data["current_utilities"].get(agent_id, 0)
                 proposed_utility = round_data["proposed_utilities"].get(agent_id, current_utility)
                 response = "ACCEPTS" if accepted else "REJECTS"
                 
                 if response == "ACCEPTS":
-                    file.write(f"  - Agent {agent_id}: {response} (cost: {current_utility} -> {proposed_utility}, change: {utility_change})\n")
+                    file.write(f"  - Agent {agent_id}: {response} (cost: {current_utility} -> {proposed_utility}, cost_delta: {cost_delta}, cost_saving: {cost_saving})\n")
                 else:
                     file.write(f"  - Agent {agent_id}: {response} (cost: {current_utility})\n")
             
@@ -356,13 +474,15 @@ class DARPNegotiationLogger:
             file.write(f"  - Agent {agent_id}: Clients {clients}\n")
         
         file.write("\nCost changes:\n")
-        for agent_id, change in final["utility_changes"].items():
+        for agent_id, change in final.get("final_cost_delta_by_agent", final["utility_changes"]).items():
             initial = final["initial_utilities"][agent_id]
             final_utility = final["final_utilities"][agent_id]
-            total_change = final["total_utility_changes"].get(agent_id, 0)
-            file.write(f"  - Agent {agent_id}: {initial} -> {final_utility} (net change: {change}, total from accepted rounds: {total_change})\n")
+            saving = final.get("final_cost_saving_by_agent", {}).get(agent_id, -change)
+            total_change = final.get("total_cost_delta_by_agent", final["total_utility_changes"]).get(agent_id, 0)
+            file.write(f"  - Agent {agent_id}: {initial} -> {final_utility} (cost_delta: {change}, cost_saving: {saving}, total applied cost_delta: {total_change})\n")
         
-        file.write(f"\nAverage utility change: {final['avg_utility_change']:.1f}\n\n")
+        file.write(f"\nAverage cost delta: {final.get('avg_cost_delta', final['avg_utility_change']):.1f}\n")
+        file.write(f"Average cost saving: {final.get('avg_cost_saving', 0):.1f}\n\n")
         
         # Footer
         file.write("========================================\n")

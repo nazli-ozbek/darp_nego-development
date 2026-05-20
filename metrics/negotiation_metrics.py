@@ -11,13 +11,108 @@ from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
 
 
+def standard_gini(values: List[float]) -> float:
+    """Standard Gini coefficient for non-negative values."""
+    if not values:
+        return 0.0
+    values = [float(value) for value in values]
+    mean_value = sum(values) / len(values)
+    if mean_value == 0:
+        return 0.0
+    absolute_diffs = sum(abs(x_i - x_j) for x_i in values for x_j in values)
+    return absolute_diffs / (2 * len(values) ** 2 * mean_value)
+
+
+def pareto_improvement_from_cost_deltas(cost_deltas: Dict[str, float]) -> bool:
+    """Cost-minimization Pareto improvement: no one worse, at least one better."""
+    if not cost_deltas:
+        return False
+    return all(delta <= 0 for delta in cost_deltas.values()) and any(
+        delta < 0 for delta in cost_deltas.values()
+    )
+
+
+def _final_cost_delta(final_state: Dict[str, Any], prenegotiation: Dict[str, Any]) -> Dict[str, float]:
+    if "final_cost_delta_by_agent" in final_state:
+        return dict(final_state["final_cost_delta_by_agent"])
+    initial = final_state.get("initial_utilities") or prenegotiation.get("initial_utilities", {})
+    final = final_state.get("final_utilities", {})
+    return {agent_id: final[agent_id] - initial[agent_id] for agent_id in final if agent_id in initial}
+
+
+def _final_cost_saving(final_state: Dict[str, Any], prenegotiation: Dict[str, Any]) -> Dict[str, float]:
+    if "final_cost_saving_by_agent" in final_state:
+        return dict(final_state["final_cost_saving_by_agent"])
+    return {agent_id: -delta for agent_id, delta in _final_cost_delta(final_state, prenegotiation).items()}
+
+
+def _applied_swap_count(round_data: Dict[str, Any]) -> int:
+    applied_swaps = round_data.get("applied_swaps", [])
+    if applied_swaps:
+        return len([swap for swap in applied_swaps if swap.get("from") != swap.get("to")])
+    return int(round_data.get("applied_swap_count", round_data.get("num_swaps", 0)) or 0)
+
+
+def calculate_canonical_metrics_from_log(log_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Return canonical negotiation metrics from a v1 or v2 negotiation log."""
+    final_state = log_data.get("final_state", {})
+    prenegotiation = log_data.get("prenegotiation", {})
+    rounds = log_data.get("rounds", [])
+    final_utilities = final_state.get("final_utilities", {})
+    initial_utilities = final_state.get("initial_utilities") or prenegotiation.get("initial_utilities", {})
+    cost_delta = _final_cost_delta(final_state, prenegotiation)
+    cost_saving = _final_cost_saving(final_state, prenegotiation)
+    total_cost = sum(final_utilities.values())
+    total_initial_cost = sum(initial_utilities.values())
+    total_cost_delta = sum(cost_delta.values())
+    total_cost_saving = sum(cost_saving.values())
+    full_acceptances = sum(
+        1 for round_data in rounds
+        if bool(round_data.get("full_acceptance", round_data.get("is_accepted", False)))
+    )
+    partial_acceptances = sum(1 for round_data in rounds if bool(round_data.get("partial_acceptance", False)))
+    total_rounds = len(rounds)
+    partial_swaps_count = sum(
+        _applied_swap_count(round_data)
+        for round_data in rounds
+        if bool(round_data.get("partial_acceptance", False))
+    )
+    total_swaps_applied = sum(_applied_swap_count(round_data) for round_data in rounds)
+    return {
+        "total_cost": total_cost,
+        "total_initial_cost": total_initial_cost,
+        "total_cost_delta": total_cost_delta,
+        "total_cost_saving": total_cost_saving,
+        "avg_cost_delta": (total_cost_delta / len(cost_delta)) if cost_delta else 0,
+        "avg_cost_saving": (total_cost_saving / len(cost_saving)) if cost_saving else 0,
+        "final_cost_delta_by_agent": cost_delta,
+        "final_cost_saving_by_agent": cost_saving,
+        "pareto_improvement": pareto_improvement_from_cost_deltas(cost_delta),
+        "gini_coefficient": standard_gini(list(final_utilities.values())),
+        "min_max_ratio": (
+            min(final_utilities.values()) / max(final_utilities.values())
+            if final_utilities and max(final_utilities.values()) > 0 else 1
+        ),
+        "rounds_to_agreement": final_state.get("total_rounds", total_rounds),
+        "agreement_reached": bool(final_state.get("agreement_reached", False)),
+        "full_acceptance_rate": full_acceptances / total_rounds if total_rounds else 0,
+        "partial_acceptance_rate": partial_acceptances / total_rounds if total_rounds else 0,
+        "total_acceptance_rate": (full_acceptances + partial_acceptances) / total_rounds if total_rounds else 0,
+        "partial_swaps_count": partial_swaps_count,
+        "total_swaps_applied": total_swaps_applied,
+        "execution_time": final_state.get("execution_time", log_data.get("execution_time", 0)),
+    }
+
+
 @dataclass
 class NegotiationMetricsSummary:
     """Summary of calculated metrics for a negotiation session"""
     # Efficiency metrics
-    social_welfare: float  # Sum of all agent utilities
-    avg_utility_change: float  # Average utility improvement across agents
-    pareto_optimal: bool  # Whether the solution is Pareto optimal
+    total_cost: float  # Sum of final route costs; lower is better
+    total_cost_saving: float  # Sum(initial_costs) - sum(final_costs); higher is better
+    avg_cost_delta: float  # Average final - initial cost; negative is better
+    avg_cost_saving: float  # Average initial - final cost; positive is better
+    pareto_improvement: bool  # No agent worse and at least one agent better
     
     # Fairness metrics
     utility_distribution: Dict[str, float]  # Final utility for each agent
@@ -35,14 +130,32 @@ class NegotiationMetricsSummary:
     
     # Time metrics
     execution_time: float  # Total execution time in seconds
+
+    @property
+    def social_welfare(self) -> float:
+        """Deprecated alias kept for old consumers; this is actually total cost."""
+        return self.total_cost
+
+    @property
+    def avg_utility_change(self) -> float:
+        """Deprecated alias for avg_cost_delta."""
+        return self.avg_cost_delta
+
+    @property
+    def pareto_optimal(self) -> bool:
+        """Deprecated alias for pareto_improvement."""
+        return self.pareto_improvement
     
     def __repr__(self) -> str:
         """Print-friendly representation of metrics summary"""
         return (
             f"=== Negotiation Metrics Summary ===\n"
             f"Agreement reached: {self.agreement_reached} in {self.rounds_to_agreement} rounds\n"
-            f"Social welfare: {self.social_welfare:.2f}\n"
-            f"Avg utility change: {self.avg_utility_change:.2f}\n"
+            f"Total cost: {self.total_cost:.2f}\n"
+            f"Total cost saving: {self.total_cost_saving:.2f}\n"
+            f"Avg cost delta: {self.avg_cost_delta:.2f} (negative is better)\n"
+            f"Avg cost saving: {self.avg_cost_saving:.2f} (positive is better)\n"
+            f"Pareto improvement: {self.pareto_improvement}\n"
             f"Gini coefficient: {self.gini_coefficient:.4f} (0=equal, 1=unequal)\n"
             f"Min/Max utility ratio: {self.min_max_ratio:.4f}\n"
             f"Full acceptance rate: {self.full_acceptance_rate:.2%}\n"
@@ -101,21 +214,21 @@ class DARPNegotiationMetrics:
         if not self.log_data:
             raise ValueError("No log data loaded. Call load_log() first.")
         
-        # Extract key data
         final_state = self.log_data["final_state"]
-        rounds = self.log_data["rounds"]
+        canonical = calculate_canonical_metrics_from_log(self.log_data)
         
         # Calculate metrics by category
-        efficiency_metrics = self._calculate_efficiency_metrics()
         fairness_metrics = self._calculate_fairness_metrics()
         process_metrics = self._calculate_process_metrics()
         
         # Create and return summary
         return NegotiationMetricsSummary(
             # Efficiency metrics
-            social_welfare=sum(final_state["final_utilities"].values()),
-            avg_utility_change=final_state["avg_utility_change"],
-            pareto_optimal=efficiency_metrics["pareto_optimal"],
+            total_cost=canonical["total_cost"],
+            total_cost_saving=canonical["total_cost_saving"],
+            avg_cost_delta=canonical["avg_cost_delta"],
+            avg_cost_saving=canonical["avg_cost_saving"],
+            pareto_improvement=canonical["pareto_improvement"],
             
             # Fairness metrics
             utility_distribution=final_state["final_utilities"],
@@ -123,8 +236,8 @@ class DARPNegotiationMetrics:
             min_max_ratio=fairness_metrics["min_max_ratio"],
             
             # Process metrics
-            rounds_to_agreement=final_state["total_rounds"],
-            agreement_reached=final_state["agreement_reached"],
+            rounds_to_agreement=canonical["rounds_to_agreement"],
+            agreement_reached=canonical["agreement_reached"],
             full_acceptance_rate=process_metrics["full_acceptance_rate"],
             partial_acceptance_rate=process_metrics["partial_acceptance_rate"],
             total_acceptance_rate=process_metrics["total_acceptance_rate"],
@@ -132,34 +245,22 @@ class DARPNegotiationMetrics:
             participating_agents=process_metrics["participating_agents"],
             
             # Time metrics
-            execution_time=final_state["execution_time"]
+            execution_time=canonical["execution_time"]
         )
     
     def _calculate_efficiency_metrics(self) -> Dict:
         """Calculate efficiency-related metrics"""
         final_state = self.log_data["final_state"]
         
-        # Simple check for Pareto optimality (not comprehensive)
-        # A real implementation would need to check all possible alternatives
-        pareto_optimal = True
-        
-        return {
-            "pareto_optimal": pareto_optimal
-        }
+        canonical = calculate_canonical_metrics_from_log(self.log_data)
+        return {"pareto_improvement": canonical["pareto_improvement"]}
     
     def _calculate_fairness_metrics(self) -> Dict:
         """Calculate fairness-related metrics"""
         final_state = self.log_data["final_state"]
         utilities = list(final_state["final_utilities"].values())
         
-        # Calculate Gini coefficient (measure of inequality)
-        sorted_utilities = sorted(utilities)
-        height = sum(sorted_utilities)
-        area = 0
-        for i, utility in enumerate(sorted_utilities):
-            area += utility * (len(utilities) - i)
-        fair_area = height * len(utilities) / 2
-        gini = 1 - area / fair_area if fair_area > 0 else 0
+        gini = standard_gini(utilities)
         
         # Calculate min/max ratio (1.0 = perfectly equal)
         max_utility = max(utilities) if utilities else 1
@@ -179,28 +280,7 @@ class DARPNegotiationMetrics:
         rounds = self.log_data["rounds"]
         total_rounds = len(rounds)
         
-        # Calculate acceptance rates.
-        # Backward compatibility:
-        # - old logs may only have "is_accepted" (full acceptance)
-        # - new logs carry "full_acceptance"/"partial_acceptance"/"num_swaps"
-        full_acceptances = sum(
-            1 for round_data in rounds
-            if bool(round_data.get("full_acceptance", round_data.get("is_accepted", False)))
-        )
-        partial_acceptances = sum(
-            1 for round_data in rounds
-            if bool(round_data.get("partial_acceptance", False))
-        )
-        full_acceptance_rate = full_acceptances / total_rounds if total_rounds > 0 else 0
-        partial_acceptance_rate = partial_acceptances / total_rounds if total_rounds > 0 else 0
-        total_acceptance_rate = (full_acceptances + partial_acceptances) / total_rounds if total_rounds > 0 else 0
-
-        # Count swaps applied in partial-acceptance rounds
-        partial_swaps_count = sum(
-            int(round_data.get("num_swaps", 0) or 0)
-            for round_data in rounds
-            if bool(round_data.get("partial_acceptance", False))
-        )
+        canonical = calculate_canonical_metrics_from_log(self.log_data)
 
         # Agent participation counts in applied partial swaps
         participant_counts = {agent_id: 0 for agent_id in self.log_data["prenegotiation"]["participants"]}
@@ -216,10 +296,10 @@ class DARPNegotiationMetrics:
                     participant_counts[to_agent] += 1
         
         return {
-            "full_acceptance_rate": full_acceptance_rate,
-            "partial_acceptance_rate": partial_acceptance_rate,
-            "total_acceptance_rate": total_acceptance_rate,
-            "partial_swaps_count": partial_swaps_count,
+            "full_acceptance_rate": canonical["full_acceptance_rate"],
+            "partial_acceptance_rate": canonical["partial_acceptance_rate"],
+            "total_acceptance_rate": canonical["total_acceptance_rate"],
+            "partial_swaps_count": canonical["partial_swaps_count"],
             "participating_agents": participant_counts
         }
     
@@ -443,6 +523,11 @@ class DARPNegotiationMetrics:
         with open(summary_path, 'w') as f:
             # Convert summary to dictionary for JSON serialization
             summary_dict = {
+                "total_cost": metrics_summary.total_cost,
+                "total_cost_saving": metrics_summary.total_cost_saving,
+                "avg_cost_delta": metrics_summary.avg_cost_delta,
+                "avg_cost_saving": metrics_summary.avg_cost_saving,
+                "pareto_improvement": metrics_summary.pareto_improvement,
                 "social_welfare": metrics_summary.social_welfare,
                 "avg_utility_change": metrics_summary.avg_utility_change,
                 "pareto_optimal": metrics_summary.pareto_optimal,

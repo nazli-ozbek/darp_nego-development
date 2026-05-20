@@ -52,6 +52,19 @@ class ClassicSingleMediatedTextMechanism(BasicDARPMechanism):
         else:  # method == "swap" or default
             return self.domain.generate_swaped_outcome()
 
+    def _validate_owner_consistency(self) -> List[str]:
+        warnings = []
+        if not self.domain:
+            return warnings
+        for agent_id, agent in self.participants.items():
+            for client_id, owner in self.domain.client_owners.items():
+                if client_id in getattr(agent, "_known_clients", {}) and agent._client_owners.get(client_id) != owner:
+                    warnings.append(
+                        f"agent {agent_id} owner map stale for client {client_id}: "
+                        f"{agent._client_owners.get(client_id)} != {owner}"
+                    )
+        return warnings
+
 
     def prenegotiation(self):
         self.domain = DARPNegotiationDomain()
@@ -152,22 +165,38 @@ class ClassicSingleMediatedTextMechanism(BasicDARPMechanism):
 
         responses = {agent_id for agent_id, (accepted, _) in agent_utilities.items() if accepted}
         self.logger.log_responses(responses, self.participants)
+        involved_agents = sorted(self.domain.get_involved_agents(outcome))
+        all_involved_accepted = (
+            all(agent_id in responses for agent_id in involved_agents)
+            if involved_agents else False
+        )
+        all_participants_accepted = len(responses) == len(self.participants)
 
         # Store detailed round history
         round_history = {
             'proposed_outcome': outcome,
             'agent_responses': agent_responses,
-            'full_acceptance': len(responses) == len(self.participants),
+            'involved_agents': involved_agents,
+            'all_involved_accepted': all_involved_accepted,
+            'all_participants_accepted': all_participants_accepted,
+            'full_acceptance_scope': 'all_participants',
+            'full_acceptance': all_participants_accepted,
+            'partial_acceptance': False,
+            'num_swaps': 0,
+            'applied_swap_count': 0,
             'applied_swaps': []
         }
 
         # Step 2: Full acceptance -> full swap
-        if len(responses) == len(self.participants): 
+        if all_participants_accepted:
             # Store the applied swaps BEFORE updating the domain
             round_history['applied_swaps'] = [
                 {'client_id': client_id, 'from': self.domain.get_current_owner(client_id), 'to': new_owner}
                 for client_id, new_owner in outcome.items()
+                if self.domain.get_current_owner(client_id) != new_owner
             ]
+            round_history['applied_swap_count'] = len(round_history['applied_swaps'])
+            round_history['num_swaps'] = round_history['applied_swap_count']
             
             # Update agents and domain
             for agent in self.participants.values():
@@ -175,6 +204,9 @@ class ClassicSingleMediatedTextMechanism(BasicDARPMechanism):
             for client_id in outcome:
                 new_owner = outcome[client_id]
                 self.domain.update_client(client_id, new_owner)
+            validation_warnings = self._validate_owner_consistency()
+            if validation_warnings:
+                round_history["validation_warnings"] = validation_warnings
             
             print("🎉 All agents accepted! Agreement reached.")
             return True, round_history

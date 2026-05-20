@@ -30,7 +30,7 @@ from darp_nego.runners.config import (
     USE_LATEST_SCENARIO,
     SCENARIO_JSON_PATH,
 )
-from metrics.negotiation_metrics import DARPNegotiationMetrics
+from metrics.negotiation_metrics import DARPNegotiationMetrics, calculate_canonical_metrics_from_log
 from metrics.darp_routing_metrics import DARPRoutingMetrics
 
 def generate_time_matrix(size, min_time=1, max_time=10, seed=None):
@@ -619,6 +619,7 @@ def analyze_negotiation_logs(session_pattern="2025_08_02_17_40_case_*"):
             # Extract statistics
             prenegotiation = log_data.get("prenegotiation", {})
             final_state = log_data.get("final_state", {})
+            canonical_metrics = calculate_canonical_metrics_from_log(log_data)
             
             # Initial utilities
             initial_utilities = prenegotiation.get("initial_utilities", {})
@@ -633,7 +634,7 @@ def analyze_negotiation_logs(session_pattern="2025_08_02_17_40_case_*"):
             num_agents = len(participants)
             
             # Negotiation results
-            agreement_reached = final_state.get("agreement_reached", False)
+            agreement_reached = canonical_metrics["agreement_reached"]
             total_rounds = final_state.get("total_rounds", 0)
             execution_time = final_state.get("execution_time", 0)
             
@@ -652,12 +653,17 @@ def analyze_negotiation_logs(session_pattern="2025_08_02_17_40_case_*"):
                 'num_agents': num_agents,
                 'initial_total_cost': initial_total_cost,
                 'final_total_cost': final_total_cost,
-                'cost_change': final_total_cost - initial_total_cost,
-                'cost_change_percentage': ((final_total_cost - initial_total_cost) / initial_total_cost * 100) if initial_total_cost > 0 else 0,
+                'cost_change': canonical_metrics["total_cost_delta"],
+                'cost_saving': canonical_metrics["total_cost_saving"],
+                'cost_change_percentage': (
+                    canonical_metrics["total_cost_delta"] / initial_total_cost * 100
+                ) if initial_total_cost > 0 else 0,
                 'agreement_reached': agreement_reached,
                 'total_rounds': total_rounds,
                 'execution_time': execution_time,
                 'avg_utility_change': avg_utility_change,
+                'avg_cost_delta': canonical_metrics["avg_cost_delta"],
+                'avg_cost_saving': canonical_metrics["avg_cost_saving"],
                 'total_revealed_clients': total_revealed_clients,
                 'initial_utilities': initial_utilities,
                 'final_utilities': final_utilities,

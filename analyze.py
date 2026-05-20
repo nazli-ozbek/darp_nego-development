@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import re
 import seaborn as sns
+from metrics.negotiation_metrics import calculate_canonical_metrics_from_log
 
 
 def _scenario_name_from_config(base_dir: str):
@@ -400,6 +401,7 @@ def analyze_negotiation_results(log_dirs):
             # Extract negotiation data
             rounds = negotiation_data.get("rounds", [])
             total_rounds = len(rounds)
+            canonical_metrics = calculate_canonical_metrics_from_log(negotiation_data)
 
             # Calculate exchange approval rates
             approved_rounds = sum(
@@ -417,19 +419,12 @@ def analyze_negotiation_results(log_dirs):
             for round_data in rounds:
                 if round_data.get("full_acceptance", round_data.get("is_accepted", False)) or round_data.get("partial_acceptance", False):
                     applied_swaps = round_data.get("applied_swaps", [])
-                    accepted_swaps += len(applied_swaps) if applied_swaps else int(round_data.get("num_swaps", 0) or 0)
+                    accepted_swaps += len(applied_swaps) if applied_swaps else int(
+                        round_data.get("applied_swap_count", round_data.get("num_swaps", 0)) or 0
+                    )
 
-            # Get utility changes - correct to positive
-            final_state = negotiation_data.get("final_state", {})
-            utility_changes = final_state.get("utility_changes", {})
-            utility_changes = {k: abs(v) for k, v in utility_changes.items()}
-
-            avg_utility_gain = sum(utility_changes.values()) / len(utility_changes) if utility_changes else 0
-
-            # Check if this is a Pareto improvement
-            # A Pareto improvement means no agent is worse off and at least one is better off
-            is_pareto_improvement = all(abs(utility_changes.get(agent_id, 0)) >= 0 for agent_id in utility_changes) and \
-                                    any(abs(utility_changes.get(agent_id, 0)) > 0 for agent_id in utility_changes)
+            avg_utility_gain = canonical_metrics["avg_cost_saving"]
+            is_pareto_improvement = canonical_metrics["pareto_improvement"]
 
             results.append({
                 "agent_count": agent_count,

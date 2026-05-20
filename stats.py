@@ -17,6 +17,7 @@ import seaborn as sns
 from datetime import datetime
 from collections import defaultdict
 import math
+from metrics.negotiation_metrics import calculate_canonical_metrics_from_log
 
 # Set up plotting style for academic publication
 plt.style.use('default')
@@ -146,6 +147,7 @@ def extract_negotiation_data(session_folders):
             prenegotiation = log_data.get("prenegotiation", {})
             final_state = log_data.get("final_state", {})
             rounds = log_data.get("rounds", [])
+            canonical_metrics = calculate_canonical_metrics_from_log(log_data)
 
             # Basic statistics
             participants = prenegotiation.get("participants", [])
@@ -157,13 +159,10 @@ def extract_negotiation_data(session_folders):
             initial_total_cost = sum(initial_utilities.values())
             final_total_cost = sum(final_utilities.values())
 
-            # NEW LOGIC: Calculate cost change and determine agreement based on cost change
-            cost_change = final_total_cost - initial_total_cost
-            cost_change_percentage = ((
-                                                  final_total_cost - initial_total_cost) / initial_total_cost * 100) if initial_total_cost > 0 else 0
-
-            # NEW LOGIC: Agreement is reached if there's any cost change (positive or negative)
-            agreement_reached = abs(cost_change) > 0.01  # Small threshold to avoid floating point issues
+            cost_change = canonical_metrics["total_cost_delta"]
+            cost_saving = canonical_metrics["total_cost_saving"]
+            cost_change_percentage = (cost_change / initial_total_cost * 100) if initial_total_cost > 0 else 0
+            agreement_reached = canonical_metrics["agreement_reached"]
 
             # Negotiation results
             total_rounds = final_state.get("total_rounds", 0)
@@ -205,7 +204,9 @@ def extract_negotiation_data(session_folders):
                 )
                 partial_accepted = bool(round_data.get("partial_acceptance", False))
                 applied_swaps = round_data.get("applied_swaps", [])
-                swaps_applied = len(applied_swaps) if applied_swaps else int(round_data.get("num_swaps", 0) or 0)
+                swaps_applied = len(applied_swaps) if applied_swaps else int(
+                    round_data.get("applied_swap_count", round_data.get("num_swaps", 0)) or 0
+                )
                 if round_accepted:
                     accepted_rounds += 1
                 if partial_accepted:
@@ -244,12 +245,15 @@ def extract_negotiation_data(session_folders):
                 'initial_total_cost': initial_total_cost,
                 'final_total_cost': final_total_cost,
                 'cost_change': cost_change,
+                'cost_saving': cost_saving,
                 'cost_change_percentage': cost_change_percentage,
                 'agreement_reached': agreement_reached,  # Based on cost change
                 'last_round_accepted': last_round_accepted,  # Based on all agents responding true in last round
                 'total_rounds': total_rounds,
                 'execution_time': execution_time,
                 'avg_utility_change': avg_utility_change,
+                'avg_cost_delta': canonical_metrics["avg_cost_delta"],
+                'avg_cost_saving': canonical_metrics["avg_cost_saving"],
                 'total_revealed_clients': total_revealed_clients,
                 'accepted_rounds': accepted_rounds,
                 'partial_rounds': partial_rounds,

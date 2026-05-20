@@ -76,6 +76,10 @@ class ClassicPartialSingleMediatedTextMechanism(ClassicSingleMediatedTextMechani
             if agent._last_utility_problem is not None:
                 agent.darp_problem = agent._last_utility_problem
                 agent._last_utility_problem = None
+        for client_id, _, new_owner in swap_decisions:
+            for agent in self.participants.values():
+                if client_id in agent._known_clients:
+                    agent._client_owners[client_id] = new_owner
 
     def round(self, outcome):
         self.logger.log_outcome(outcome, self.domain)
@@ -118,7 +122,12 @@ class ClassicPartialSingleMediatedTextMechanism(ClassicSingleMediatedTextMechani
 
         num_accepts = len(responses)
         num_swaps = len(acceptable_part)
-        is_full_acceptance = (num_accepts == len(self.participants))
+        all_involved_accepted = (
+            all(agent_id in responses for agent_id in involved_agents)
+            if involved_agents else False
+        )
+        all_participants_accepted = (num_accepts == len(self.participants))
+        is_full_acceptance = all_participants_accepted
 
         if pending_updates:
             print(f"Applying {len(pending_updates)} partial/full swaps.")
@@ -127,17 +136,25 @@ class ClassicPartialSingleMediatedTextMechanism(ClassicSingleMediatedTextMechani
                 self.domain.update_client(client_id, new_owner)
             for agent_id, agent in self.participants.items():
                 agent_responses[agent_id]["proposed_utility"] = agent.current_utility
+        validation_warnings = self._validate_owner_consistency()
 
         round_summary = {
+            "proposed_outcome": outcome,
             "agent_responses": agent_responses,
+            "involved_agents": sorted(involved_agents),
+            "all_involved_accepted": all_involved_accepted,
+            "all_participants_accepted": all_participants_accepted,
+            "full_acceptance_scope": "all_participants",
             "num_accepts": num_accepts,
             "num_swaps": num_swaps,
+            "applied_swap_count": num_swaps,
             "full_acceptance": is_full_acceptance,
             "partial_acceptance": (num_swaps > 0 and not is_full_acceptance),
             "applied_swaps": [
                 {"client_id": client_id, "from": old_owner, "to": new_owner}
                 for client_id, old_owner, new_owner in pending_updates
             ],
+            "validation_warnings": validation_warnings,
         }
 
         if is_full_acceptance:

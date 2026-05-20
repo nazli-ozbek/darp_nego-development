@@ -382,6 +382,10 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             if agent._last_utility_problem is not None:
                 agent.darp_problem = agent._last_utility_problem
                 agent._last_utility_problem = None
+        for client_id, _, new_owner in swap_decisions:
+            for agent in self.participants.values():
+                if client_id in agent._known_clients:
+                    agent._client_owners[client_id] = new_owner
 
     # --------------------------------------------------
     # Prenegotiation
@@ -526,10 +530,23 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
             replay_buffer_size = self._total_buffer_size()
             return False, {
                 "round": round_num,
+                "proposed_outcome": outcome,
+                "involved_agents": [],
+                "all_involved_accepted": False,
+                "all_participants_accepted": False,
+                "full_acceptance_scope": "all_participants",
+                "full_acceptance": False,
+                "partial_acceptance": False,
                 "num_accepts": 0,
                 "num_swaps": 0,
+                "applied_swap_count": 0,
+                "applied_swaps": [],
                 "agent_responses": agent_responses_for_logging,
                 "replay_buffer_size": replay_buffer_size,
+                "strategy_metadata": {
+                    "proposal_source": self.current_pair_source,
+                    "replay_buffer_size": replay_buffer_size,
+                },
             }
 
         responses = set()
@@ -604,24 +621,61 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         if acceptable_part:
             for agent_id, agent in self.participants.items():
                 agent_responses_for_logging[agent_id]["proposed_utility"] = agent.current_utility
+        validation_warnings = self._validate_owner_consistency()
 
         # === AGREEMENT CHECK ===
-        is_full_acceptance = (num_accepts == len(self.participants))
+        all_involved_accepted = (
+            all(agent_id in responses for agent_id in involved_agents)
+            if involved_agents else False
+        )
+        all_participants_accepted = (num_accepts == len(self.participants))
+        is_full_acceptance = all_participants_accepted
+        applied_swaps = [
+            {"client_id": client_id, "from": old_owner, "to": new_owner}
+            for client_id, old_owner, new_owner in pending_updates
+        ]
+        strategy_metadata = {
+            "proposal_source": self.current_pair_source,
+            "replay_buffer_size": replay_buffer_size,
+            "model_active": replay_buffer_size >= self.min_samples_for_model,
+        }
         if is_full_acceptance:
             print("🎉 All agents accepted! Full agreement reached.")
             return True, {
                 "round": round_num,
+                "proposed_outcome": outcome,
+                "involved_agents": sorted(involved_agents),
+                "all_involved_accepted": all_involved_accepted,
+                "all_participants_accepted": all_participants_accepted,
+                "full_acceptance_scope": "all_participants",
                 "num_accepts": num_accepts,
                 "num_swaps": num_swaps,
+                "applied_swap_count": len(applied_swaps),
+                "full_acceptance": is_full_acceptance,
+                "partial_acceptance": False,
+                "applied_swaps": applied_swaps,
                 "agent_responses": agent_responses_for_logging,
                 "replay_buffer_size": replay_buffer_size,
+                "strategy_metadata": strategy_metadata,
+                "validation_warnings": validation_warnings,
             }
         print(f"[BUFFER] Swap dataset size: {self._total_buffer_size()}")
 
         return False, {
             "round": round_num,
+            "proposed_outcome": outcome,
+            "involved_agents": sorted(involved_agents),
+            "all_involved_accepted": all_involved_accepted,
+            "all_participants_accepted": all_participants_accepted,
+            "full_acceptance_scope": "all_participants",
             "num_accepts": num_accepts,
             "num_swaps": num_swaps,
+            "applied_swap_count": len(applied_swaps),
+            "full_acceptance": is_full_acceptance,
+            "partial_acceptance": (num_swaps > 0 and not is_full_acceptance),
+            "applied_swaps": applied_swaps,
             "agent_responses": agent_responses_for_logging,
             "replay_buffer_size": replay_buffer_size,
+            "strategy_metadata": strategy_metadata,
+            "validation_warnings": validation_warnings,
         }

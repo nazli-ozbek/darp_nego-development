@@ -92,6 +92,8 @@ class SingleTextBasicNegotiator(BasicDARPNegotiator):
             elif current_owner != self.agent_id and owner_id == self.agent_id:
                 getting.append(client_id)
         temp_utility = self.get_utility(including=getting, excluding=giving)
+        # Persist delta so update_agreement() can commit the accepted proposal.
+        self.utility_change = temp_utility - self.current_utility
         is_accepted = temp_utility <= self.initial_utility
         
         # Concise decision summary
