@@ -31,7 +31,8 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         self.swap_training_buffers = defaultdict(lambda: deque(maxlen=self.training_buffer_maxlen))
         default_min_samples = 20
         self.min_samples_for_model = kwargs.get("min_samples_for_model", default_min_samples)
-        self.max_model_swaps = kwargs.get("max_model_swaps", 5)
+        # Pairwise model: keep model-guided proposals to a single reciprocal swap by default.
+        self.max_model_swaps = kwargs.get("max_model_swaps", 1)
         self.swap_probability_floor = kwargs.get("swap_probability_floor", 0)
         self.agent_deterministic_accepts = set()
         self.frozen_pair_keys = {}
@@ -150,10 +151,14 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         print("[GEN] Model proposal exhausted, reverting to farthest-distance heuristic.")
         self.current_pair_source = "heuristic"
         if method == "farthest":
-            return self.domain.generate_outcome_farthest_distance(
+            base_outcome = self.domain.generate_outcome_farthest_distance(
                 revealed_clients=None, round_history=round_history
             )
-        return self.domain.generate_random_outcome()
+        else:
+            base_outcome = self.domain.generate_random_outcome()
+        if base_outcome:
+            self._capture_pairs_from_outcome(base_outcome)
+        return base_outcome
 
     def _generate_model_guided_outcome(self) -> Optional[BasicDARPOutcome]:
         if not self.domain or not self.domain.client_owners:
@@ -238,6 +243,13 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         """Persist features and labels for each attempted client pair swap."""
         if not pair_attempts:
             return {}
+        pair_attempts = list(pair_attempts)
+        if len(pair_attempts) != 1:
+            print(
+                f"[TRAIN] Skipping pairwise training for bundled proposal with "
+                f"{len(pair_attempts)} pair attempts."
+            )
+            return {}
         recent_samples = defaultdict(list)
         model_active = self._total_buffer_size() >= self.min_samples_for_model
         for pair in pair_attempts:
@@ -314,27 +326,47 @@ class SingleMediatedTextMechanism(ClassicSingleMediatedTextMechanism):
         return sum(losses) / len(losses)
 
     def _capture_pairs_from_outcome(self, outcome: BasicDARPOutcome):
-        """Extract simple client pairs from a heuristic outcome so the model can train during cold start."""
-        participant_ids = sorted(self.participants.keys(), key=self._agent_sort_key)
-        clients_by_agent = defaultdict(list)
-        for client_id, owner in outcome.items():
-            clients_by_agent[owner].append(client_id)
-
+        """
+        Extract only genuine reciprocal 2-agent swaps from an outcome.
+        Multi-agent cycles are ignored because the learning model is pairwise.
+        """
         pair_attempts = []
-        for i in range(len(participant_ids)):
-            agent_a = participant_ids[i]
-            for j in range(i + 1, len(participant_ids)):
-                agent_b = participant_ids[j]
-                for client_a in clients_by_agent.get(agent_a, []):
-                    for client_b in clients_by_agent.get(agent_b, []):
-                        if self._is_pair_frozen(agent_a, client_a, agent_b, client_b):
-                            continue
-                        pair_attempts.append({
-                            "client_a": client_a,
-                            "agent_a": agent_a,
-                            "client_b": client_b,
-                            "agent_b": agent_b,
-                        })
+        used_clients = set()
+
+        changed_clients = [
+            client_id
+            for client_id, new_owner in outcome.items()
+            if self.domain.get_current_owner(client_id) != new_owner
+        ]
+
+        for client_a in changed_clients:
+            if client_a in used_clients:
+                continue
+            agent_a = self.domain.get_current_owner(client_a)
+            agent_b = outcome[client_a]
+            if agent_a == agent_b:
+                continue
+
+            counterparts = [
+                client_b for client_b in changed_clients
+                if client_b != client_a
+                and client_b not in used_clients
+                and self.domain.get_current_owner(client_b) == agent_b
+                and outcome[client_b] == agent_a
+            ]
+            if len(counterparts) != 1:
+                continue
+
+            client_b = counterparts[0]
+            if self._is_pair_frozen(agent_a, client_a, agent_b, client_b):
+                continue
+            pair_attempts.append({
+                "client_a": client_a,
+                "agent_a": agent_a,
+                "client_b": client_b,
+                "agent_b": agent_b,
+            })
+            used_clients.update({client_a, client_b})
 
         if pair_attempts:
             self.current_pair_attempts = pair_attempts

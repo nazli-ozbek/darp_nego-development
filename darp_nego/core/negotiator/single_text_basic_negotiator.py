@@ -94,7 +94,7 @@ class SingleTextBasicNegotiator(BasicDARPNegotiator):
         temp_utility = self.get_utility(including=getting, excluding=giving)
         # Persist delta so update_agreement() can commit the accepted proposal.
         self.utility_change = temp_utility - self.current_utility
-        is_accepted = temp_utility <= self.initial_utility
+        is_accepted = temp_utility <= self.current_utility
         
         # Concise decision summary
         exchange_summary = ""
